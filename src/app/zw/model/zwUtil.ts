@@ -18,7 +18,7 @@ import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.de
 import { VerityField } from "../../../cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../cci/cube/relationship";
-import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
+import { Cube, cciFamily } from "../../../cci/cube/cciCube";
 import { isCci } from "../../../cci/cube/cciCubeUtil";
 import { RetrievalFormat } from "../../../cci/veritum/veritum.definitions";
 import { RecursiveRelResolvingPostInfo, RecursiveRelResolvingGetPostsGenerator } from "../../../cci/identity/identity.definitions";
@@ -49,11 +49,11 @@ export interface MakePostOptions extends CubeCreateOptions {
 export async function makePost(
     text: string,
     options: MakePostOptions = {},
-): Promise<cciCube> {
+): Promise<Cube> {
   // set default options
   options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
   // prepare Cube
-  const cube: cciCube = cciCube.Frozen({
+  const cube: Cube = Cube.Frozen({
     family: cciFamily, requiredDifficulty: options.requiredDifficulty, fields: [
       VerityField.Application(("ZW")),
       VerityField.MediaType(MediaTypes.TEXT),

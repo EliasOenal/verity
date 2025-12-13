@@ -1,6 +1,6 @@
 import type { CubeCreateOptions } from "../../core/cube/cube.definitions";
 
-import type { cciCube } from "../cube/cciCube";
+import type { Cube } from "../cube/cciCube";
 import type { CciDecryptionParams, CciEncryptionParams } from "./encryption.definitions";
 import type { VerityField } from "../cube/verityField";
 
@@ -16,7 +16,7 @@ export interface VeritumCreateOptions extends VeritumCompileOptions {
    * to supply that list here, so that the resulting Veritum is already in
    * compiled state.
    */
-  chunks?: cciCube[];
+  chunks?: Cube[];
 }
 
 export enum RetrievalFormat {
@@ -47,7 +47,7 @@ export interface SplitOptions extends RecombineOptions {
    *   of the current chunk as well as the total number of chunk Cubes.
    * @returns
    */
-  chunkTransformationCallback?: (chunk: cciCube, state: ChunkFinalisationState) => void;
+  chunkTransformationCallback?: (chunk: Cube, state: ChunkFinalisationState) => void;
 }
 
 export interface RecombineOptions extends CubeCreateOptions {

@@ -90,7 +90,7 @@ export class VerityFields extends CubeFields {
 
 // NOTE: Never move this to another file. This only works if it is defined
 // strictly after cciField and cciFields.
-// For the same reason, cciFamily is defined in the same file as cciCube.
+// For the same reason, cciFamily is defined in the same file as Cube.
 // Javascript is crazy.
 export const cciFrozenFieldDefinition: FieldDefinition = {
   fieldNames: FieldType,

@@ -1,7 +1,7 @@
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 import { CoreCube } from '../../../src/core/cube/cube';
 
-import { cciCube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cciCube';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { Relationship, RelationshipType } from '../../../src/cci/cube/relationship';
 import { Veritum } from '../../../src/cci/veritum/veritum';
@@ -31,7 +31,7 @@ async function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable,
   if (veritum['main'] !== undefined) veritum = (veritum as unknown as PostInfo<Veritable>).main;
   // correct format?
   if (format === RetrievalFormat.Veritum) expect(veritum).toBeInstanceOf(Veritum);
-  if (format === RetrievalFormat.Cube) expect(veritum).toBeInstanceOf(cciCube);
+  if (format === RetrievalFormat.Cube) expect(veritum).toBeInstanceOf(Cube);
 
   if (shouldResolveBasePost) {
     const rel: Relationship = (veritum as Veritum).getFirstRelationship(RelationshipType.REPLY_TO);

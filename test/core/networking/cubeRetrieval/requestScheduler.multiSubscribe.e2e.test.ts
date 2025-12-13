@@ -1,7 +1,7 @@
 import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
 import type { CubeSubscription } from '../../../../src/core/networking/cubeRetrieval/pendingRequest';
 
-import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
+import { cciFamily, Cube } from "../../../../src/cci/cube/cciCube";
 import { FieldType } from "../../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../../src/cci/cube/verityField";
 import { CubeKey } from "../../../../src/core/cube/cube.definitions";
@@ -101,7 +101,7 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
 
     // Create a test MUC on both remote nodes
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: CoreCube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,
@@ -171,7 +171,7 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
 
     // Create a test MUC only on remote1 (remote2 won't have it)
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: CoreCube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,

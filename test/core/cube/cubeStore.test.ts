@@ -9,7 +9,7 @@ import { Sublevels } from '../../../src/core/cube/levelBackend';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
 import { VerityField } from '../../../src/cci/cube/verityField';
-import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
+import { Cube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { VerityFields } from '../../../src/cci/cube/verityFields';
 
 import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
@@ -346,7 +346,7 @@ describe('cubeStore', () => {
           });
 
           it('should not parse TLV fields by default', async () => {
-            const spammyCube = cciCube.Frozen({  // Cube with 300 TLV fields
+            const spammyCube = Cube.Frozen({  // Cube with 300 TLV fields
               fields: Array.from({ length: 300 }, () => VerityField.Payload("!")),
               requiredDifficulty: reducedDifficulty,
             });
@@ -1127,7 +1127,7 @@ describe('cubeStore', () => {
 
         it("stores CCI Cubes by default", async () => {
           // prepare a CCI Cube
-          const cube: cciCube = cciCube.Frozen({
+          const cube: Cube = Cube.Frozen({
             fields: [
               VerityField.Application("Applicatio probandi"),
               VerityField.MediaType(MediaTypes.TEXT),
@@ -1145,9 +1145,9 @@ describe('cubeStore', () => {
 
           // restore Cube from store --
           // expect it to restore as CCI Cube as that's our default setting
-          const restored: cciCube = await cubeStore.getCube(key) as cciCube;
+          const restored: Cube = await cubeStore.getCube(key) as Cube;
           expect(restored).toBeTruthy();
-          expect(restored).toBeInstanceOf(cciCube);
+          expect(restored).toBeInstanceOf(Cube);
           expect(restored.fields).toBeInstanceOf(VerityFields);
           expect(restored.getFirstField(FieldType.APPLICATION).value.toString())
             .toEqual("Applicatio probandi");

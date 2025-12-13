@@ -4,7 +4,7 @@ import { asCubeKey, keyVariants } from "../../../../core/cube/keyUtil";
 import { logger } from "../../../../core/logger";
 
 import { FieldType } from "../../../../cci/cube/cciCube.definitions";
-import { cciCube } from "../../../../cci/cube/cciCube";
+import { Cube } from "../../../../cci/cube/cciCube";
 import { RelationshipType } from "../../../../cci/cube/relationship";
 import { RecursiveRelResolvingGetPostsGenerator, PostInfo, RecursiveRelResolvingPostInfo } from "../../../../cci/identity/identity.definitions";
 import { Identity } from "../../../../cci/identity/identity";
@@ -136,7 +136,7 @@ export class PostController extends VerityController {
 
     // normalise input:
     // setting cube:
-    const cube: cciCube = postInfo.main as cciCube;
+    const cube: Cube = postInfo.main as Cube;
 
     // sanity checks
     if (!(await isPostDisplayable(postInfo))) {

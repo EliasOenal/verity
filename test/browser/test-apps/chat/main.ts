@@ -20,7 +20,7 @@ import { RetrievalFormat } from '../../../../src/cci/veritum/veritum.definitions
 import { CoreCube } from '../../../../src/core/cube/cube';
 import { CubeRetriever } from '../../../../src/core/networking/cubeRetrieval/cubeRetriever';
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
-import { cciFamily, cciCube } from '../../../../src/cci/cube/cciCube';
+import { cciFamily, Cube } from '../../../../src/cci/cube/cciCube';
 import { coreCubeFamily } from '../../../../src/core/cube/cube';
 
 interface ChatMessage {
@@ -593,8 +593,8 @@ async function processRoomMessageStream(): Promise<void> {
 async function parseChatCubeToMessage(cube: CoreCube): Promise<ChatMessage | null> {
   try {
     // Use the exact same parsing method as the demo chat application
-    const cciCube: cciCube = cube as cciCube;
-    const { username, message } = ChatApplication.parseChatCube(cciCube);
+    const cciCube: Cube = cube as Cube;
+    const { username, message } = ChatApplication.parseChatCube(Cube);
     
     return {
       text: message,

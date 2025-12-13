@@ -21,7 +21,7 @@ import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypai
 import { VerityField } from '../cube/verityField';
 import { VerityFields, cciPmucFieldDefinition, cciPmucParser } from '../cube/verityFields';
 import { Relationship, RelationshipType } from '../cube/relationship';
-import { cciCube, cciFamily } from '../cube/cciCube';
+import { Cube, cciFamily } from '../cube/cciCube';
 import { ensureCci, extensionMuc } from '../cube/cciCubeUtil';
 
 import { RetrievalFormat } from '../veritum/veritum.definitions';
@@ -232,7 +232,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    **/
   static async Construct(
     cubeStoreOrRetriever: CubeRetrievalInterface<any>,
-    mucOrMasterkey: cciCube | Buffer,
+    mucOrMasterkey: Cube | Buffer,
     options?: IdentityOptions,
   ): Promise<Identity> {
     await sodium.ready;
@@ -331,7 +331,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   private _encryptionPublicKey: Buffer;
 
   /** @member - The MUC in which this Identity information is stored and published */
-  private _muc: cciCube = undefined;
+  private _muc: Cube = undefined;
 
   /** List of own posts, in undefined order */
   private _posts: Set<string> = new Set();
@@ -344,8 +344,8 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    */
   private _publicSubscriptions: Set<string> = new Set();
 
-  private _publicSubscriptionIndices: Array<cciCube> = [];
-  get publicSubscriptionIndices(): Array<cciCube> {
+  private _publicSubscriptionIndices: Array<Cube> = [];
+  get publicSubscriptionIndices(): Array<Cube> {
     return this._publicSubscriptionIndices;
   }
 
@@ -356,7 +356,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    * remember their request in this promise. Any subsequent Identity changes
    * will then be handles in a single rebuild.
    */
-  private makeMucPromise: Promise<cciCube> = undefined;
+  private makeMucPromise: Promise<Cube> = undefined;
 
   /**
    * A promise which will resolve once this Identity has been fully parsed,
@@ -389,7 +389,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    */
     constructor(
       cubeStoreOrRetriever: CubeRetrievalInterface<any>|undefined,
-      mucOrMasterkey: cciCube | Buffer,
+      mucOrMasterkey: Cube | Buffer,
       readonly options: IdentityOptions = {},
   ){
     super();
@@ -499,7 +499,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     return phrase;
   }
 
-  get muc(): cciCube { return this._muc; }
+  get muc(): Cube { return this._muc; }
 
   //###
   // #endregion
@@ -878,7 +878,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    */
   // TODO guard this against double access similar to makeMUC() now that compilation
   //   is triggered here rather than there
-  async store():Promise<cciCube>{
+  async store():Promise<Cube>{
     // sanity checks
     if (this.cubeStore === undefined) {
       throw new VerityError("Identity.store(): This Identity is running in read-only mode (i.e. does not have a CubeStore reference), thus store() is not possible.");
@@ -905,7 +905,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   * changes have been performed to avoid spamming multiple MUC versions
   * (and having to compute hashcash for all of them).
   */
-  async marshall(): Promise<cciCube> {
+  async marshall(): Promise<Cube> {
     // Pre-run check:
     // Is there already a PMUC compilation in progress?
     // If so, do not start a competing process but just return their promise.
@@ -975,7 +975,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           // note: key is always available as this is a MUC
     }
 
-    const newPmuc: cciCube = cciCube.Create({
+    const newPmuc: Cube = Cube.Create({
       cubeType: CubeType.PMUC,
       publicKey: this.publicKey,
       privateKey: this._muc.privateKey,
@@ -1053,7 +1053,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     let recursiveSubs: Set<string> = new Set(this._publicSubscriptions);
     if (curDepth < maxDepth) {
       for (const sub of this._publicSubscriptions) {
-        const muc: cciCube = ensureCci(await this.cubeRetriever.getCube(sub));
+        const muc: Cube = ensureCci(await this.cubeRetriever.getCube(sub));
         if (!muc) continue;
         let id: Identity;
         try {
@@ -1130,7 +1130,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         // TODO BUGBUG: This will currently not delete an unnecessary index cube
         //   if enough subs have been removed, effectively retaining the removed
         //   subs. The same applies if the number of subs is reduced to zero.
-        const indexCube: cciCube = extensionMuc(this.masterKey, {
+        const indexCube: Cube = extensionMuc(this.masterKey, {
           fields,
           subkeyIndex: i,
           contextString: "Subscription recommendation index",
@@ -1168,12 +1168,12 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    *   it will just resolve after the retrieval timeout and still be no good.
    *   We need to rethink that...
    */
-  private demarshall(muc: cciCube): Promise<void> {
+  private demarshall(muc: Cube): Promise<void> {
     if (Settings.RUNTIME_ASSERTIONS) {
       // disabled for now: Identity doesn't *really* require a cciCube object
       // and our codebase currently does not cleanly distinguish required
       // Cube classes yet
-      // if (!(muc instanceof cciCube)) {
+      // if (!(muc instanceof Cube)) {
       //   this.readyPromiseReject(new CubeError("Identity: Supplied Cube is not as CCI Cube"));
       //   return;
       // }
@@ -1257,7 +1257,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         ((incoming.cubeType === CubeType.PMUC || incoming.cubeType === CubeType.PMUC_NOTIFY) &&
           incoming.updatecount > this.muc.getFirstField(FieldType.PMUC_UPDATE_COUNT)?.value?.readUintBE?.(0, NetConstants.PMUC_UPDATE_COUNT_SIZE))
     ) {
-      this.demarshall(incoming.getCube() as cciCube);
+      this.demarshall(incoming.getCube() as Cube);
       logger.trace("Identity.mergeRemoteChanges: Adopting incoming root Cube");
     } else {
       logger.trace("Identity.mergeRemoteChanges: Rejecting incoming root Cube as mine is newer");
@@ -1266,7 +1266,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
 
   // TODO: check and limit recursion
   private async recursiveDemarshallPublicSubscriptions(
-      mucOrMucExtension: cciCube,
+      mucOrMucExtension: Cube,
       alreadyTraversedCubes: string[] = []
   ): Promise<void> {
     // sanity check
@@ -1305,7 +1305,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     for (const furtherIndex of furtherIndices) {
       const furtherCube: CoreCube = await this.cubeRetriever.getCube(furtherIndex.remoteKey);
       if (furtherCube) {
-        await this.recursiveDemarshallPublicSubscriptions(furtherCube as cciCube, alreadyTraversedCubes);
+        await this.recursiveDemarshallPublicSubscriptions(furtherCube as Cube, alreadyTraversedCubes);
       }
     }
   }

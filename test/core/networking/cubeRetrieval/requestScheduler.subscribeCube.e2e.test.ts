@@ -1,7 +1,7 @@
 import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
 import type { CubeSubscription } from '../../../../src/core/networking/cubeRetrieval/pendingRequest';
 
-import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
+import { cciFamily, Cube } from "../../../../src/cci/cube/cciCube";
 import { FieldType } from "../../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../../src/cci/cube/verityField";
 import { CubeKey } from "../../../../src/core/cube/cube.definitions";
@@ -88,7 +88,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
 
     // create a test MUC
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: CoreCube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,
@@ -146,7 +146,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
 
     // remote creates a MUC
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: CoreCube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,
@@ -209,7 +209,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
 
     // remote creates a MUC
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: CoreCube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,

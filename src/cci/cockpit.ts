@@ -11,7 +11,7 @@ import { FieldPosition } from "../core/fields/baseFields";
 import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
 
 import { dummyVerityNode, VerityNodeIf, VerityNodeOptions } from "./verityNode";
-import { cciCube } from "./cube/cciCube";
+import { Cube } from "./cube/cciCube";
 import { Relationship, RelationshipType } from "./cube/relationship";
 import { VerityField } from "./cube/verityField";
 import { Identity } from "./identity/identity";
@@ -182,23 +182,23 @@ export class Cockpit implements VeritumRetrievalInterface {
   }
   // Pass-through method to implement CubeRetrievalInterface --
   // TODO: implement enhancement features like auto-decrypt
-  getCube<cubeClass extends CoreCube = cciCube>(
+  getCube<cubeClass extends CoreCube = Cube>(
     key: CubeKey | string,
     options: {resolveRels: true, metadata?: true} & GetVeritumOptions & ResolveRelsOptions,
   ): Promise<ResolveRelsResult>;
-  getCube<cubeClass extends CoreCube = cciCube>(
+  getCube<cubeClass extends CoreCube = Cube>(
       key: CubeKey | string,
       options: {resolveRels: 'recursive', metadata?: true} & GetVeritumOptions & ResolveRelsRecursiveOptions,
   ): Promise<ResolveRelsRecursiveResult>;
-  getCube<cubeClass extends CoreCube = cciCube>(
+  getCube<cubeClass extends CoreCube = Cube>(
     key: CubeKey | string,
     options: {metadata: true} & GetVeritumOptions & ResolveRelsRecursiveOptions,
   ): Promise<MetadataEnhancedRetrieval<CoreCube>>;
-  getCube<cubeClass extends CoreCube = cciCube>(
+  getCube<cubeClass extends CoreCube = Cube>(
       key: CubeKey | string,
       options?: GetVeritumOptions
   ): Promise<cubeClass>;
-  getCube<cubeClass extends CoreCube = cciCube>(
+  getCube<cubeClass extends CoreCube = Cube>(
       key: CubeKey | string,
       options?: CubeRequestOptions,
   ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<CoreCube>> {

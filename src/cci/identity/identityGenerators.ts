@@ -1,7 +1,7 @@
 import type { CoreCube } from "../../core/cube/cube";
 import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
-import type { cciCube } from "../cube/cciCube";
+import type { Cube } from "../cube/cciCube";
 import type { IdentityStore } from "./identityStore";
 
 import { MergedAsyncGenerator, mergeAsyncGenerators } from "../../core/helpers/asyncGenerators";
@@ -61,7 +61,7 @@ export async function *notifyingIdentities(
     if (id === undefined) {
       // We don't yet have an object for this Identity.
       // Create one, then yield it.
-      id = new Identity(cubeStoreOrRetriever, idRoot as cciCube, {
+      id = new Identity(cubeStoreOrRetriever, idRoot as Cube, {
         identityStore,
       });
     }

@@ -15,7 +15,7 @@ import { RequestScheduler } from '../../../src/core/networking/cubeRetrieval/req
 import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRetriever';
 import { NetworkManagerIf } from '../../../src/core/networking/networkManagerIf';
 import { PeerDB } from '../../../src/core/peering/peerDB';
-import { cciCube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cciCube';
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
@@ -171,7 +171,7 @@ describe('IdentityUtil', () => {
             idmucNotificationKey: notificationKey,
           });
 
-          let n1muc: cciCube, n2muc: cciCube;
+          let n1muc: Cube, n2muc: Cube;
           await Promise.all([
             notifying1.marshall().then(muc => n1muc = muc),
             notifying2.marshall().then(muc => n2muc = muc),

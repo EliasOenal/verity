@@ -1,5 +1,5 @@
 import { Settings } from "../../../src/core/settings";
-import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
+import { Cube, cciFamily } from "../../../src/cci/cube/cciCube";
 import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Veritum } from "../../../src/cci/veritum/veritum";
@@ -227,9 +227,9 @@ describe('Veritum (basic tests)', () => {
                     binaryChunks.push(await chunk.getBinaryData());
                   }
                   // reactivate the chunks
-                  const reactivatedChunks: cciCube[] = [];
+                  const reactivatedChunks: Cube[] = [];
                   for (const binaryChunk of binaryChunks) {
-                    const reactivatedChunk: cciCube = new cciCube(binaryChunk);
+                    const reactivatedChunk: Cube = new Cube(binaryChunk);
                     reactivatedChunks.push(reactivatedChunk);
                   }
                   // reconstruct the Veritum from the reactivated chunks

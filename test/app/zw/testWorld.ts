@@ -1,7 +1,7 @@
 import { CoreCube } from "../../../src/core/cube/cube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
-import { cciCube } from "../../../src/cci/cube/cciCube";
+import { Cube } from "../../../src/cci/cube/cciCube";
 import { IdentityOptions } from "../../../src/cci/identity/identity.definitions";
 import { Identity } from "../../../src/cci/identity/identity";
 import { VeritumRetriever } from "../../../src/cci/veritum/veritumRetriever";
@@ -99,7 +99,7 @@ export class TestWorld {
   }
 
   storeIdentities(): Promise<void> {
-    const promises: Promise<cciCube>[] = [];
+    const promises: Promise<Cube>[] = [];
     // store Identities
     promises.push(this.protagonist.store());
     promises.push(this.directSub.store());

@@ -16,26 +16,26 @@ import { FieldType } from "./cciCube.definitions";
 
 import { Buffer } from 'buffer';  // for browsers
 
-export class cciCube extends CoreCube {
+export class Cube extends CoreCube {
   static Create(
       options: CubeCreateOptions = {},
-  ): cciCube {
+  ): Cube {
     options = Object.assign({}, options);  // copy options to avoid messing up original
     options.family ??= cciFamily;
-    const cube: cciCube = super.Create(options) as cciCube;
+    const cube: Cube = super.Create(options) as Cube;
     if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
-      throw new CubeError("cciCube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
+      throw new CubeError("Cube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
     }
     return cube;
   }
 
   /** @deprecated Use Create() directly please */
-  static Frozen(options: CubeCreateOptions): cciCube {
+  static Frozen(options: CubeCreateOptions): Cube {
     options.cubeType = CubeType.FROZEN;
     options.family = options?.family ?? cciFamily;
-    const cube: cciCube = super.Frozen(options) as cciCube;
+    const cube: Cube = super.Frozen(options) as Cube;
     if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
-      throw new CubeError("cciCube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
+      throw new CubeError("Cube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
     }
     return cube;
   }
@@ -44,13 +44,13 @@ export class cciCube extends CoreCube {
       publicKey: Buffer,
       privateKey: Buffer,
       options?: CubeCreateOptions,
-  ): cciCube {
+  ): Cube {
     options.cubeType = CubeType.MUC;
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;
-    const cube: cciCube = super.MUC(publicKey, privateKey, options) as cciCube;
+    const cube: Cube = super.MUC(publicKey, privateKey, options) as Cube;
     if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
-      throw new CubeError("cciCube.MUC: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
+      throw new CubeError("Cube.MUC: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
     }
     return cube;
   }
@@ -69,13 +69,13 @@ export class cciCube extends CoreCube {
       cubeType: CubeType,
       options?: CubeCreateOptions);
   /** Copy constructor: Copy an existing Cube */
-  constructor(copyFrom: cciCube);
+  constructor(copyFrom: Cube);
   // Repeat implementation as declaration as calls must strictly match a
   // declaration, not the implementation (which is stupid)
-  constructor(param1: Buffer | CubeType | cciCube, option?: CubeCreateOptions);
+  constructor(param1: Buffer | CubeType | Cube, option?: CubeCreateOptions);
 
   constructor(
-    param1: Buffer | CubeType | cciCube,
+    param1: Buffer | CubeType | Cube,
     options: CubeCreateOptions = {},
   ) {
     options.family = options.family ?? cciFamily;
@@ -164,6 +164,6 @@ export class cciCube extends CoreCube {
   // executed strictly after the cciCube implementation. You may get uncaught
   // ReferenceErrors otherwise.
   export const cciFamily: CubeFamilyDefinition = {
-    cubeClass: cciCube,
+    cubeClass: Cube,
     parsers: cciFieldParsers,
   }

@@ -54,7 +54,7 @@ export async function stageTestCubeInBrowser(
         return { success: false, error: 'cciCube or VerityField not exposed globally' };
       }
       const payload = `${c} :: ${Date.now()} :: ${Math.random()} :: ${(crypto as any)?.randomUUID?.() ?? Math.random()}`;
-      const cube = cciCube.Create({
+      const cube = Cube.Create({
         fields: [VerityField.Payload(payload)],
         requiredDifficulty: 0,
       });
@@ -191,13 +191,13 @@ export async function createTestCubeInBrowser(
       let cube: any;
       try {
         console.log('[createTestCubeInBrowser] Sculpting CCI cube');
-        cube = cciCube.Create({
+        cube = Cube.Create({
           fields: [VerityField.Payload(payload)],
           requiredDifficulty: 0,
         });
       } catch (e:any) {
-        console.error('[createTestCubeInBrowser] cciCube.Frozen failed', e?.message);
-        return { success: false, error: 'cciCube.Frozen failed: ' + e?.message };
+        console.error('[createTestCubeInBrowser] Cube.Frozen failed', e?.message);
+        return { success: false, error: 'Cube.Frozen failed: ' + e?.message };
       }
 
       // Compile explicitly to surface errors early

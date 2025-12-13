@@ -2,7 +2,7 @@ import { ControllerContext, VerityController } from "../verityController";
 import { ChatView } from "./chatView";
 import { ChatApplication } from "../../app/chatApplication";
 import { logger } from "../../core/logger";
-import { cciCube, cciFamily } from "../../cci/cube/cciCube";
+import { Cube, cciFamily } from "../../cci/cube/cciCube";
 import { Buffer } from "buffer";
 import { NotificationKey } from "../../core/cube/cube.definitions";
 import { mergeAsyncGenerators, MergedAsyncGenerator } from "../../core/helpers/asyncGenerators";
@@ -222,7 +222,7 @@ export class ChatController extends VerityController {
                         continue;
                     }
                     
-                    const cciCube: cciCube = cube as cciCube;
+                    const cciCube: Cube = cube as Cube;
                     const { username, message } = ChatApplication.parseChatCube(cciCube);
                     const newMessage = { 
                         username, 
@@ -392,7 +392,7 @@ export class ChatController extends VerityController {
                         continue;
                     }
                     
-                    const cciCube: cciCube = cube as cciCube;
+                    const cciCube: Cube = cube as Cube;
                     const { username, message } = ChatApplication.parseChatCube(cciCube);
                     const newMessage = { 
                         username, 

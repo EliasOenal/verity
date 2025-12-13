@@ -3,7 +3,7 @@ import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
 import { VerityField } from '../../src/cci/cube/verityField';
 import { Relationship, RelationshipType } from '../../src/cci/cube/relationship';
-import { cciCube } from '../../src/cci/cube/cciCube';
+import { Cube } from '../../src/cci/cube/cciCube';
 import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotationEngine';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
@@ -35,8 +35,8 @@ describe('annotationEngine', () => {
 
     describe('getReverseRelationships()', () => {
       it('correctly creates a reverse relationship', async () => {
-        const referee = cciCube.Frozen({requiredDifficulty: reducedDifficulty});
-        const referrer = cciCube.Frozen({
+        const referee = Cube.Frozen({requiredDifficulty: reducedDifficulty});
+        const referrer = Cube.Frozen({
           fields: VerityField.RelatesTo(new Relationship(
             RelationshipType.CONTINUED_IN, await referee.getKey())),
           requiredDifficulty: reducedDifficulty
@@ -78,13 +78,13 @@ describe('annotationEngine', () => {
       const muckeys2: KeyPair = sodium.crypto_sign_keypair();
       const muc1 = CoreCube.MUC(Buffer.from(muckeys1.publicKey), Buffer.from(muckeys1.privateKey));
       const muc2 = CoreCube.MUC(Buffer.from(muckeys2.publicKey), Buffer.from(muckeys2.privateKey));
-      const continuedin = cciCube.Frozen({
+      const continuedin = Cube.Frozen({
         fields: VerityField.Payload("Multum habeo dicere"),
         requiredDifficulty: reducedDifficulty
       });
 
       // And now the offender themselves:
-      const nonconformingCube = cciCube.Frozen({
+      const nonconformingCube = Cube.Frozen({
         fields: [
           VerityField.RelatesTo(new Relationship(
             RelationshipType.MENTION, await muc1.getKey())),
