@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { CoreNode } from '../../../src/core/coreNode';
 import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 import { AddressAbstraction } from '../../../src/core/peering/addressing';
-import { Cube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/cube';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeType, NotificationKey, CubeFieldType } from '../../../src/core/cube/cube.definitions';
 import { testCoreOptions } from '../testcore.definition';
@@ -126,7 +126,7 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     // console.log('WebRTC-Direct connection established successfully');
 
     // Test cube transmission over WebRTC-Direct
-    const testCube = Cube.Frozen({
+    const testCube = CoreCube.Frozen({
       fields: [
         CubeField.RawContent(CubeType.FROZEN, "WebRTC-Direct e2e test message"),
       ],
@@ -142,7 +142,7 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     ]);
 
     expect(retrievedCube).toBeDefined();
-    expect((retrievedCube as Cube).getKeyIfAvailable()).toEqual(testCube.getKeyIfAvailable());
+    expect((retrievedCube as CoreCube).getKeyIfAvailable()).toEqual(testCube.getKeyIfAvailable());
     // console.log('Successfully transmitted cube over WebRTC-Direct connection');
 
     await Promise.all([

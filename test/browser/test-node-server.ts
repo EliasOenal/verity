@@ -10,7 +10,7 @@ import { testCoreOptions } from '../core/testcore.definition';
 import { SupportedTransports } from '../../src/core/networking/networkDefinitions';
 import { WebSocketAddress } from '../../src/core/peering/addressing';
 import { Peer } from '../../src/core/peering/peer';
-import { Cube } from '../../src/core/cube/cube';
+import { CoreCube } from '../../src/core/cube/cube';
 import { CubeField } from '../../src/core/cube/cubeField';
 import { CubeType } from '../../src/core/cube/cube.definitions';
 import { logger } from '../../src/core/logger';
@@ -89,7 +89,7 @@ export class TestNodeServer {
     }
 
     try {
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, content),
         requiredDifficulty: 0,
       });

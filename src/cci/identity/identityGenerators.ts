@@ -1,4 +1,4 @@
-import type { Cube } from "../../core/cube/cube";
+import type { CoreCube } from "../../core/cube/cube";
 import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import type { cciCube } from "../cube/cciCube";
@@ -28,16 +28,16 @@ export async function *notifyingIdentities(
     options: NotifyingIdentitiesOptions = {},
 ): AsyncGenerator<Identity> {
   // First, get any notifying Identity root Cube matching the notification key
-  let idRoots: MergedAsyncGenerator<Cube>;
-  const existingIdRoots: AsyncGenerator<Cube> =
-    cubeStoreOrRetriever.getNotifications(notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+  let idRoots: MergedAsyncGenerator<CoreCube>;
+  const existingIdRoots: AsyncGenerator<CoreCube> =
+    cubeStoreOrRetriever.getNotifications(notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<CoreCube>;
 
   // HACKHACK: Check if there's a subscribeNotifications() method.
   //   This is a "temporary" hack to work around the fact that CubeRetrievalInterface
   //   does not yet mandate the presence of a subscribeNotifications() method;
   //   and notably CubeStore does not implement it.
   if (options.subscribe && 'subscribeNotifications' in cubeStoreOrRetriever) {
-    const futureIdRoots: AsyncGenerator<Cube> =
+    const futureIdRoots: AsyncGenerator<CoreCube> =
       (cubeStoreOrRetriever as any).subscribeNotifications(notificationKey, { format: RetrievalFormat.Cube });
     idRoots = mergeAsyncGenerators(existingIdRoots, futureIdRoots);
   } else {

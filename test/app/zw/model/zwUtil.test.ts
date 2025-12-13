@@ -1,6 +1,6 @@
 import type { CubeKey } from "../../../../src/core/cube/cube.definitions";
 
-import { Cube } from "../../../../src/core/cube/cube";
+import { CoreCube } from "../../../../src/core/cube/cube";
 import { VerityField } from "../../../../src/cci/cube/verityField";
 import { NetConstants } from "../../../../src/core/networking/networkDefinitions";
 
@@ -16,7 +16,7 @@ describe('makePost function', () => {
   it('should create a basic post', async () => {
     const text = 'Habeo res importantes dicere';
     const post: cciCube = await makePost(text, {requiredDifficulty: 0});
-    expect(post).toBeInstanceOf(Cube);
+    expect(post).toBeInstanceOf(CoreCube);
     expect(assertZwCube(post)).toBe(true);
     expect(post.getFirstField(FieldType.PAYLOAD).value.toString('utf8')).
       toEqual(text);
@@ -28,7 +28,7 @@ describe('makePost function', () => {
       replyto: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey,
       requiredDifficulty: 0,
     });
-    expect(post).toBeInstanceOf(Cube);
+    expect(post).toBeInstanceOf(CoreCube);
     expect(assertZwCube(post)).toBe(true);
     expect(post.getFirstField(FieldType.PAYLOAD).value.toString('utf8')).
       toEqual(text);
@@ -46,7 +46,7 @@ describe('makePost function', () => {
 
 describe('assertZwCube function', () => {
   it('should return true for a valid ZW cube', () => {
-    const validCube: Cube = cciCube.Frozen({
+    const validCube: CoreCube = cciCube.Frozen({
       fields: [
         VerityField.Application("ZW"),
         VerityField.Payload('Habeo res importantes dicere'),
@@ -57,7 +57,7 @@ describe('assertZwCube function', () => {
   });
 
   it('should return false for a cube without an application field', () => {
-    const invalidCube: Cube = cciCube.Frozen({
+    const invalidCube: CoreCube = cciCube.Frozen({
       fields: [
         VerityField.Payload('Habeo res importantes dicere'),
       ],
@@ -67,7 +67,7 @@ describe('assertZwCube function', () => {
   });
 
   it('should return false for a cube with an application field not equal to ZW', () => {
-    const invalidCube: Cube = cciCube.Frozen({
+    const invalidCube: CoreCube = cciCube.Frozen({
       fields: [
         VerityField.Application("Applicatio latina"),
         VerityField.Payload('Habeo res importantes dicere'),

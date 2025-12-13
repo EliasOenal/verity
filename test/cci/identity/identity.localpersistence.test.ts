@@ -1,4 +1,4 @@
-import { Cube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/cube';
 import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
@@ -67,8 +67,8 @@ describe('Identity:local persistant storage', () => {
       id.name = "Probator Identitatum";
       id.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
 
-      const storePromise: Promise<Cube> = id.store();
-      expect(storePromise).toBeInstanceOf(Promise<Cube>);
+      const storePromise: Promise<CoreCube> = id.store();
+      expect(storePromise).toBeInstanceOf(Promise<CoreCube>);
       await storePromise;
     }
     { // phase 2: retrieve, compare and delete the identity

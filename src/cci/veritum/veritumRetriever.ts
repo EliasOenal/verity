@@ -1,6 +1,6 @@
 import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
 import type { Shuttable } from "../../core/helpers/coreInterfaces";
-import type { Cube } from "../../core/cube/cube";
+import type { CoreCube } from "../../core/cube/cube";
 import type { CubeInfo } from "../../core/cube/cubeInfo";
 import type { CubeRequestOptions, RequestScheduler } from "../../core/networking/cubeRetrieval/requestScheduler";
 import type { Veritable } from "../../core/cube/veritable.definition";
@@ -70,27 +70,27 @@ export class VeritumRetriever
     return this.cubeRetriever.expectCube(keyInput);
   }
 
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = cciCube>(
       key: CubeKey | string,
       options: {resolveRels: true, metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsOptions,
   ): Promise<ResolveRelsResult>;
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = cciCube>(
       key: CubeKey | string,
       options: {resolveRels: 'recursive', metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
   ): Promise<ResolveRelsRecursiveResult>;
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = cciCube>(
     key: CubeKey | string,
     options: {metadata: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
-  ): Promise<MetadataEnhancedRetrieval<Cube>>;
-  getCube<cubeClass extends Cube = cciCube>(
+  ): Promise<MetadataEnhancedRetrieval<CoreCube>>;
+  getCube<cubeClass extends CoreCube = cciCube>(
       key: CubeKey | string,
       options?: GetCubeOptionsT & GetVeritumOptions
   ): Promise<cubeClass>;
 // TODO implement auto-decryption of single encrypted Cubes
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = cciCube>(
       key: CubeKey | string,
       options: Partial<GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions> = {}
-  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<Cube>> {
+  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<CoreCube>> {
     // set default options
     if (options.resolveRels) (options as GetVeritumOptions).metadata ??= true;
 
@@ -118,7 +118,7 @@ export class VeritumRetriever
     }
     // - None of that? Craft an empty meta data object then I guess.
     else return cubePromise.then(cube => {
-      const ret: MetadataEnhancedRetrieval<Cube> = {
+      const ret: MetadataEnhancedRetrieval<CoreCube> = {
         main: cube,
         done: Promise.resolve(),
         isDone: true,
@@ -190,9 +190,9 @@ export class VeritumRetriever
   }
 
   // Overloads for getNotifications()
-  // Overloads using the `Cube` RetrievalFormat:
+  // Overloads using the `CoreCube` RetrievalFormat:
   // - Auto-resolving relationships, single level
-  getNotifications<cubeClass extends Cube>(
+  getNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -201,7 +201,7 @@ export class VeritumRetriever
     },
   ): AsyncGenerator<ResolveRelsResult<cubeClass>>;
   // - Auto-resolving relationships, recursive
-  getNotifications<cubeClass extends Cube>(
+  getNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -210,7 +210,7 @@ export class VeritumRetriever
     },
   ): AsyncGenerator<ResolveRelsRecursiveResult<cubeClass>>;
   // - Using metadata, but not auto-resolving relationships
-  getNotifications<cubeClass extends Cube>(
+  getNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -218,7 +218,7 @@ export class VeritumRetriever
     },
   ): AsyncGenerator<MetadataEnhancedRetrieval<cubeClass>>;
   // - Plain output, no metadata
-  getNotifications<cubeClass extends Cube>(
+  getNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -338,9 +338,9 @@ export class VeritumRetriever
   }
 
   // Overloads for subscribeNotifications()
-  // Overloads using the `Cube` RetrievalFormat:
+  // Overloads using the `CoreCube` RetrievalFormat:
   // - Auto-resolving relationships, single level
-  subscribeNotifications<cubeClass extends Cube>(
+  subscribeNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -349,7 +349,7 @@ export class VeritumRetriever
     },
   ): CancellableGenerator<ResolveRelsResult<cubeClass>>;
   // - Auto-resolving relationships, recursive
-  subscribeNotifications<cubeClass extends Cube>(
+  subscribeNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -358,7 +358,7 @@ export class VeritumRetriever
     },
   ): CancellableGenerator<ResolveRelsRecursiveResult<cubeClass>>;
   // - Using metadata, but not auto-resolving relationships
-  subscribeNotifications<cubeClass extends Cube>(
+  subscribeNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -366,7 +366,7 @@ export class VeritumRetriever
     },
   ): CancellableGenerator<MetadataEnhancedRetrieval<cubeClass>>;
   // - Plain output, no metadata
-  subscribeNotifications<cubeClass extends Cube>(
+  subscribeNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -474,7 +474,7 @@ export class VeritumRetriever
     yield undefined as any;
   }
   private createVeritumSubscriptionGenerator(
-    cubeNotifications: CancellableGenerator<Cube>,
+    cubeNotifications: CancellableGenerator<CoreCube>,
     options: GetNotificationsOptions,
   ): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
     const generator = this.createVeritumSubscriptionGeneratorInternal(cubeNotifications, options);
@@ -488,7 +488,7 @@ export class VeritumRetriever
   }
 
   private async *createVeritumSubscriptionGeneratorInternal(
-    cubeNotifications: CancellableGenerator<Cube>,
+    cubeNotifications: CancellableGenerator<CoreCube>,
     options: GetNotificationsOptions,
   ): AsyncGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
     try {

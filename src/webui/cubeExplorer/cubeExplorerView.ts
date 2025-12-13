@@ -1,6 +1,6 @@
 import { FieldType } from "../../cci/cube/cciCube.definitions";
 import { Relationship, RelationshipType } from "../../cci/cube/relationship";
-import { Cube } from "../../core/cube/cube";
+import { CoreCube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cube.definitions";
 import { CubeField } from "../../core/cube/cubeField";
 import { isPrintable } from "../../core/helpers/misc";
@@ -82,7 +82,7 @@ export class CubeExplorerView extends VerityView {
     this.cubeList.appendChild(li);
   }
 
-  displayCubeDetails(key: string, cube: Cube): void {
+  displayCubeDetails(key: string, cube: CoreCube): void {
     const li = this.cubeList.querySelector(`[data-cubekey="${key}"]`) as HTMLLIElement;
     if (!li) return;
 

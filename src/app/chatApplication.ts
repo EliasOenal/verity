@@ -5,7 +5,7 @@ import { FieldType } from '../cci/cube/cciCube.definitions';
 import { CubeType, NotificationKey } from '../core/cube/cube.definitions';
 import { CubeField } from '../core/cube/cubeField';
 import { logger } from '../core/logger';
-import { Cube } from '../core/cube/cube';
+import { CoreCube } from '../core/cube/cube';
 
 export class ChatApplication {
     private static readonly APPLICATION_IDENTIFIER = 'chat';
@@ -23,7 +23,7 @@ export class ChatApplication {
             throw new Error('Invalid notification key: must be a 32-byte Buffer');
         }
 
-        const cube: Cube = cciCube.Frozen({
+        const cube: CoreCube = cciCube.Frozen({
             fields: [
                 VerityField.Notify(notificationKey),
                 VerityField.Application(this.APPLICATION_IDENTIFIER),

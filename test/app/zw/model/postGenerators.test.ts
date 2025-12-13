@@ -4,7 +4,7 @@ import { cciCube } from "../../../../src/cci/cube/cciCube";
 import { TestWorld } from "../testWorld";
 import { explorePostGenerator, isPostDisplayable, wotPostGenerator } from '../../../../src/app/zw/model/zwUtil';
 import { PostInfo, RecursiveRelResolvingPostInfo } from '../../../../src/cci/identity/identity.definitions';
-import { Cube } from '../../../../src/core/cube/cube';
+import { CoreCube } from '../../../../src/core/cube/cube';
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
 import { IdentityStore } from '../../../../src/cci/identity/identityStore';
@@ -82,18 +82,18 @@ describe('post generators', () => {
     });
   });
 
-  async function shouldDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<Cube>[]) {
+  async function shouldDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
     const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
     expect(postInfo).toBeDefined();
     expect(await isPostDisplayable(postInfo!)).toBe(true);
   }
 
-  function shouldNotGenerate(post: Veritable, list: RecursiveRelResolvingPostInfo<Cube>[]) {
+  function shouldNotGenerate(post: Veritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
     const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
     expect(postInfo).toBeUndefined();
   }
 
-  async function shouldGenerateButNotDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<Cube>[]) {
+  async function shouldGenerateButNotDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
     const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
     expect(postInfo).toBeDefined();
     expect(await isPostDisplayable(postInfo!)).toBe(false);
@@ -101,7 +101,7 @@ describe('post generators', () => {
 
   describe('full WOT', () => {
     let w: TestWorld;
-    const list: RecursiveRelResolvingPostInfo<Cube>[] = [];
+    const list: RecursiveRelResolvingPostInfo<CoreCube>[] = [];
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: true });
       await w.setup();
@@ -181,7 +181,7 @@ describe('post generators', () => {
 
   describe('explore unknown authors through notifications', () => {
     let w: TestWorld;
-    const list: RecursiveRelResolvingPostInfo<Cube>[] = [];
+    const list: RecursiveRelResolvingPostInfo<CoreCube>[] = [];
 
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: false });

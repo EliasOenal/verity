@@ -1,4 +1,4 @@
-import { Cube } from "../../../src/core/cube/cube";
+import { CoreCube } from "../../../src/core/cube/cube";
 import { CubeKey, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { keyVariants } from "../../../src/core/cube/keyUtil";
 import { CubeField } from "../../../src/core/cube/cubeField";
@@ -187,7 +187,7 @@ describe('NetworkPeer SubscribeNotification tests', () => {
     describe('sendSubscribedCubeUpdate() private method', () => {
       it('should send a KeyResponse with ExpressSync mode when a subscribed notification is added', async () => {
         // add a notification cube
-        const notification = Cube.Create({
+        const notification = CoreCube.Create({
           fields: CubeField.Notify(notificationKey1),
           requiredDifficulty,
         });

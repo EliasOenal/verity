@@ -12,7 +12,7 @@ import { TransportConnection } from '../transport/transportConnection';
 import { DummyNetworkManager } from './dummyNetworkManager';
 import { DummyTransportConnection } from './dummyTransportConnection';
 import { MessageClass, NetConstants, NodeType } from '../networkDefinitions';
-import { Cube } from '../../cube/cube';
+import { CoreCube } from '../../cube/cube';
 import { webcrypto as crypto } from 'crypto';
 
 export class DummyNetworkPeer extends Peer implements NetworkPeerIf {

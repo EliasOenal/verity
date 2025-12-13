@@ -17,7 +17,7 @@ import { SupportedTransports } from '../../../../src/core/networking/networkDefi
 import { defaultInitialPeers } from '../../../../src/core/coreNode';
 import { mergeAsyncGenerators, MergedAsyncGenerator } from '../../../../src/core/helpers/asyncGenerators';
 import { RetrievalFormat } from '../../../../src/cci/veritum/veritum.definitions';
-import { Cube } from '../../../../src/core/cube/cube';
+import { CoreCube } from '../../../../src/core/cube/cube';
 import { CubeRetriever } from '../../../../src/core/networking/cubeRetrieval/cubeRetriever';
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
 import { cciFamily, cciCube } from '../../../../src/cci/cube/cciCube';
@@ -35,7 +35,7 @@ interface ChatRoom {
   name: string;
   notificationKey: NotificationKey;
   messages: ChatMessage[];
-  subscription: MergedAsyncGenerator<Cube> | null;
+  subscription: MergedAsyncGenerator<CoreCube> | null;
   isProcessingMessages: boolean;
   processedCubeKeys: Set<string>;
 }
@@ -454,7 +454,7 @@ async function startChatRoomSubscription(): Promise<void> {
     }
     
     // 1) Enable live subscription for future messages
-    let futureCubes: AsyncGenerator<Cube> | undefined;
+    let futureCubes: AsyncGenerator<CoreCube> | undefined;
     if ('subscribeNotifications' in verityNode.cubeRetriever) {
       futureCubes = (verityNode.cubeRetriever as CubeRetriever)
         .subscribeNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube });
@@ -462,8 +462,8 @@ async function startChatRoomSubscription(): Promise<void> {
     }
 
     // 2) Also fetch network history from the retriever to cover what we don't have locally
-    const retrieverHistory: AsyncGenerator<Cube> = (verityNode.cubeRetriever as CubeRetriever)
-      .getNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+    const retrieverHistory: AsyncGenerator<CoreCube> = (verityNode.cubeRetriever as CubeRetriever)
+      .getNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<CoreCube>;
     console.log('Starting network history retrieval from connected peers');
 
     // 3) Merge streams: future first (already active), plus retriever history
@@ -493,10 +493,10 @@ async function loadLocalChatHistory(): Promise<void> {
   
   try {
     // Get messages from the local store only
-    const localCubes: AsyncGenerator<Cube> = 
+    const localCubes: AsyncGenerator<CoreCube> = 
       verityNode.cubeStore.getNotifications(currentChatRoom.notificationKey, { 
         format: RetrievalFormat.Cube
-      }) as AsyncGenerator<Cube>;
+      }) as AsyncGenerator<CoreCube>;
 
     for await (const cube of localCubes) {
       try {
@@ -590,7 +590,7 @@ async function processRoomMessageStream(): Promise<void> {
  * Parse a chat cube into a ChatMessage
  * Uses the exact same method as the demo chat application - no fallback parsing
  */
-async function parseChatCubeToMessage(cube: Cube): Promise<ChatMessage | null> {
+async function parseChatCubeToMessage(cube: CoreCube): Promise<ChatMessage | null> {
   try {
     // Use the exact same parsing method as the demo chat application
     const cciCube: cciCube = cube as cciCube;

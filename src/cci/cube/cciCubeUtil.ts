@@ -1,4 +1,4 @@
-import { Cube } from "../../core/cube/cube";
+import { CoreCube } from "../../core/cube/cube";
 import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 import { CubeType } from "../../core/cube/cube.definitions";
 import { Settings } from "../../core/settings";
@@ -7,12 +7,12 @@ import { cciCube, cciFamily } from "./cciCube";
 import { VerityField } from "./verityField";
 import { VerityFields } from "./verityFields";
 
-export function isCci(cube: Cube): boolean {
+export function isCci(cube: CoreCube): boolean {
   if (cube instanceof cciCube && cube.assertCci()) return true;
   else return false;
 }
 
-export function ensureCci(cube: Cube): cciCube {
+export function ensureCci(cube: CoreCube): cciCube {
   if (isCci(cube)) return cube as cciCube;
   else return undefined;
 }

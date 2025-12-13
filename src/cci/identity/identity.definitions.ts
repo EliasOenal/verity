@@ -1,7 +1,7 @@
 import type { MergedAsyncGenerator } from "../../core/helpers/asyncGenerators";
 
 import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
-import type { Cube } from "../../core/cube/cube";
+import type { CoreCube } from "../../core/cube/cube";
 import type { CubeEmitterEvents } from "../../core/cube/cubeRetrieval.definitions";
 
 import type { CubeRequestOptions } from "../../core/networking/cubeRetrieval/requestScheduler";
@@ -209,5 +209,5 @@ export interface GetRecursiveEmitterOptions {
 
 export interface IdentityEvents extends CubeEmitterEvents {
   postAdded: [PostInfo<Veritum>];
-  postAddedCube: [PostInfo<Cube>];
+  postAddedCube: [PostInfo<CoreCube>];
 }

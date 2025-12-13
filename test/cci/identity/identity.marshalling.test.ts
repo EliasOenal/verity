@@ -1,7 +1,7 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { asNotificationKey } from "../../../src/core/cube/keyUtil";
-import { Cube } from "../../../src/core/cube/cube";
+import { CoreCube } from "../../../src/core/cube/cube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
 import { FieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
@@ -58,7 +58,7 @@ let cubeStore: CubeStore;
       await cubeStore.addCube(post);
       expect(postkey).toBeInstanceOf(Buffer);
       expect(original.getPostCount()).toEqual(1);
-      expect((await cubeStore.getCube(Array.from(original.getPostKeyStrings())[0]) as Cube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(Array.from(original.getPostKeyStrings())[0]) as CoreCube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
 
       // compile ID into MUC
@@ -86,7 +86,7 @@ let cubeStore: CubeStore;
       expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.getPostCount()).toEqual(1);
-      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(
+      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as CoreCube).getFirstField(
         FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
       expect(restored.encryptionPublicKey.equals(original.encryptionPublicKey)).toBeTruthy();
@@ -119,8 +119,8 @@ let cubeStore: CubeStore;
       expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
       // restore Identity from stored MUC
-      const restoredmuc: Cube = await cubeStore.getCube(await muc.getKey());
-      expect(restoredmuc).toBeInstanceOf(Cube);
+      const restoredmuc: CoreCube = await cubeStore.getCube(await muc.getKey());
+      expect(restoredmuc).toBeInstanceOf(CoreCube);
       const restored: Identity = await Identity.Construct(
         cubeStore, restoredmuc as cciCube);
       expect(restored).toBeInstanceOf(Identity);
@@ -129,7 +129,7 @@ let cubeStore: CubeStore;
       expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.getPostCount()).toEqual(1);
-      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as CoreCube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
     }, 5000);
 
@@ -192,7 +192,7 @@ let cubeStore: CubeStore;
 
         // reading it back
         const restoredMuc = await cubeStore.getCube(key) as cciCube;
-        expect(restoredMuc).toBeInstanceOf(Cube);
+        expect(restoredMuc).toBeInstanceOf(CoreCube);
         const restored: Identity = await Identity.Construct(cubeStore, restoredMuc, idTestOptions);
         expect(restored.name).toEqual("Probator condendi repetitionis " + i);
         expect(parseInt(restored.avatar.seedString, 16)).toEqual(i);

@@ -2,7 +2,7 @@ import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { CubeError, CubeKey, CubeType, NonNotifyCubeType, NotifyCubeType } from "../../core/cube/cube.definitions";
-import { Cube } from "../../core/cube/cube";
+import { CoreCube } from "../../core/cube/cube";
 import { FieldParser } from "../../core/fields/fieldParser";
 
 import { cciCube } from "../cube/cciCube";
@@ -82,7 +82,7 @@ class Splitter {
   // splitting related members
   private chunkIndex = -1;
   readonly cubes: cciCube[] = [];
-  private demoChunk: Cube;
+  private demoChunk: CoreCube;
 
   /**
    * A list of "empty" CONTINUED_IN references created by split(),

@@ -7,7 +7,7 @@ import { Buffer } from "buffer";
 import { NotificationKey } from "../../core/cube/cube.definitions";
 import { mergeAsyncGenerators, MergedAsyncGenerator } from "../../core/helpers/asyncGenerators";
 import { RetrievalFormat } from "../../cci/veritum/veritum.definitions";
-import { Cube } from "../../core/cube/cube";
+import { CoreCube } from "../../core/cube/cube";
 import { CubeRetriever } from "../../core/networking/cubeRetrieval/cubeRetriever";
 import { ChatStorage, StoredChatRoom } from "./chatStorage";
 
@@ -17,7 +17,7 @@ export interface ChatRoom {
     notificationKey: NotificationKey;
     messages: Array<{ username: string, message: string, timestamp: Date, cubeKey?: string }>;
     unreadCount: number;
-    subscription: MergedAsyncGenerator<Cube> | null;
+    subscription: MergedAsyncGenerator<CoreCube> | null;
     isProcessingMessages: boolean;
     processedCubeKeys: Set<string>; // Track processed cube keys to avoid duplicates
     seenCubeKeys: Set<string>; // Track which messages have been seen by the user
@@ -167,15 +167,15 @@ export class ChatController extends VerityController {
         
         try {
             // 1) Enable live subscription first so we don't miss notifications
-            let futureCubes: AsyncGenerator<Cube> | undefined;
+            let futureCubes: AsyncGenerator<CoreCube> | undefined;
             if ('subscribeNotifications' in this.cubeRetriever) {
                 futureCubes = (this.cubeRetriever as CubeRetriever)
                     .subscribeNotifications(room.notificationKey, { format: RetrievalFormat.Cube });
             }
 
             // 2) Also fetch recent history from the retriever to cover what we don't have locally
-            const retrieverHistory: AsyncGenerator<Cube> = (this.cubeRetriever as CubeRetriever)
-                .getNotifications(room.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+            const retrieverHistory: AsyncGenerator<CoreCube> = (this.cubeRetriever as CubeRetriever)
+                .getNotifications(room.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<CoreCube>;
 
             // Merge streams: future first (already active), plus retriever history
             room.subscription = futureCubes
@@ -374,10 +374,10 @@ export class ChatController extends VerityController {
             logger.trace(`Chat: Loading historical messages for room ${roomId}`);
             
             // Get messages from the local store for instant population
-            const historicalCubes: AsyncGenerator<Cube> = 
+            const historicalCubes: AsyncGenerator<CoreCube> = 
                 this.cubeStore.getNotifications(room.notificationKey, { 
                     format: RetrievalFormat.Cube
-                }) as AsyncGenerator<Cube>;
+                }) as AsyncGenerator<CoreCube>;
             
             const messages: Array<{ username: string, message: string, timestamp: Date, cubeKey: string }> = [];
             

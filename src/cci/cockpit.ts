@@ -1,6 +1,6 @@
 import type { CubeKey, NotificationKey } from "../core/cube/cube.definitions";
 
-import { Cube } from "../core/cube/cube";
+import { CoreCube } from "../core/cube/cube";
 import { CubeCreateOptions } from '../core/cube/cube.definitions';
 import { CubeInfo } from "../core/cube/cubeInfo";
 import { CubeStore } from "../core/cube/cubeStore";
@@ -182,26 +182,26 @@ export class Cockpit implements VeritumRetrievalInterface {
   }
   // Pass-through method to implement CubeRetrievalInterface --
   // TODO: implement enhancement features like auto-decrypt
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = cciCube>(
     key: CubeKey | string,
     options: {resolveRels: true, metadata?: true} & GetVeritumOptions & ResolveRelsOptions,
   ): Promise<ResolveRelsResult>;
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = cciCube>(
       key: CubeKey | string,
       options: {resolveRels: 'recursive', metadata?: true} & GetVeritumOptions & ResolveRelsRecursiveOptions,
   ): Promise<ResolveRelsRecursiveResult>;
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = cciCube>(
     key: CubeKey | string,
     options: {metadata: true} & GetVeritumOptions & ResolveRelsRecursiveOptions,
-  ): Promise<MetadataEnhancedRetrieval<Cube>>;
-  getCube<cubeClass extends Cube = cciCube>(
+  ): Promise<MetadataEnhancedRetrieval<CoreCube>>;
+  getCube<cubeClass extends CoreCube = cciCube>(
       key: CubeKey | string,
       options?: GetVeritumOptions
   ): Promise<cubeClass>;
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = cciCube>(
       key: CubeKey | string,
       options?: CubeRequestOptions,
-  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<Cube>> {
+  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<CoreCube>> {
     return this.node.veritumRetriever.getCube(key, options);
   }
   // Pass-through method to implement CubeRetrievalInterface

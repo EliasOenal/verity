@@ -1,4 +1,4 @@
-import { Cube } from '../../src/core/cube/cube';
+import { CoreCube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
 import { VerityField } from '../../src/cci/cube/verityField';
@@ -76,8 +76,8 @@ describe('annotationEngine', () => {
       await sodium.ready;
       const muckeys1: KeyPair = sodium.crypto_sign_keypair();
       const muckeys2: KeyPair = sodium.crypto_sign_keypair();
-      const muc1 = Cube.MUC(Buffer.from(muckeys1.publicKey), Buffer.from(muckeys1.privateKey));
-      const muc2 = Cube.MUC(Buffer.from(muckeys2.publicKey), Buffer.from(muckeys2.privateKey));
+      const muc1 = CoreCube.MUC(Buffer.from(muckeys1.publicKey), Buffer.from(muckeys1.privateKey));
+      const muc2 = CoreCube.MUC(Buffer.from(muckeys2.publicKey), Buffer.from(muckeys2.privateKey));
       const continuedin = cciCube.Frozen({
         fields: VerityField.Payload("Multum habeo dicere"),
         requiredDifficulty: reducedDifficulty

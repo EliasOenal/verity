@@ -1,4 +1,4 @@
-import { Cube } from "../../../src/core/cube/cube";
+import { CoreCube } from "../../../src/core/cube/cube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
 import { cciCube } from "../../../src/cci/cube/cciCube";
@@ -112,39 +112,39 @@ export class TestWorld {
 }
 
 export class TestWordPostSet {
-  own: Cube;
-  ownDirect: Cube;
-  ownIndirect: Cube;
-  ownThird: Cube;
-  ownUnrelatedUnanswered: Cube;
-  ownUnrelatedAnswered: Cube;
-  ownUnrelatedSub: Cube;
+  own: CoreCube;
+  ownDirect: CoreCube;
+  ownIndirect: CoreCube;
+  ownThird: CoreCube;
+  ownUnrelatedUnanswered: CoreCube;
+  ownUnrelatedAnswered: CoreCube;
+  ownUnrelatedSub: CoreCube;
 
-  directUnreplied: Cube;
+  directUnreplied: CoreCube;
 
-  directReplied: Cube;
-  directOwn: Cube;
-  directThird: Cube;
+  directReplied: CoreCube;
+  directOwn: CoreCube;
+  directThird: CoreCube;
 
-  indirectUnreplied: Cube;
+  indirectUnreplied: CoreCube;
 
-  indirectReplied: Cube;
-  indirectOwn: Cube;
+  indirectReplied: CoreCube;
+  indirectOwn: CoreCube;
 
-  thirdUnreplied: Cube;
-  thirdReplied: Cube;
-  thirdOwn: Cube;
+  thirdUnreplied: CoreCube;
+  thirdReplied: CoreCube;
+  thirdOwn: CoreCube;
 
-  unrelatedUnanswered: Cube;
+  unrelatedUnanswered: CoreCube;
 
-  unrelatedAnsweredBySub: Cube;
-  unrelatedSub: Cube;
+  unrelatedAnsweredBySub: CoreCube;
+  unrelatedSub: CoreCube;
 
-  unrelatedAnsweredByProtagonist: Cube;
-  unrelatedOwn: Cube;
+  unrelatedAnsweredByProtagonist: CoreCube;
+  unrelatedOwn: CoreCube;
 
-  subUnavailable: Cube;
-  subUnavailableIndirect: Cube;
+  subUnavailable: CoreCube;
+  subUnavailableIndirect: CoreCube;
 
   constructor(
     private w: TestWorld,

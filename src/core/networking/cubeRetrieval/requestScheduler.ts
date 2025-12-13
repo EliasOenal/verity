@@ -1,6 +1,6 @@
 import type { NetworkPeerIf } from '../networkPeerIf';
 import type { NetworkManagerIf } from '../networkManagerIf';
-import type { Cube } from '../../cube/cube';
+import type { CoreCube } from '../../cube/cube';
 import type { CubeInfo } from '../../cube/cubeInfo';
 
 import { Settings } from '../../settings';
@@ -715,7 +715,7 @@ export class RequestScheduler implements Shuttable {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
-    const delivered: Cube[] = [];
+    const delivered: CoreCube[] = [];
     for (const binaryCube of binaryCubes) {
       // first of all, activate this Cube
       const cube = this.networkManager.cubeStore.activateCube(binaryCube);

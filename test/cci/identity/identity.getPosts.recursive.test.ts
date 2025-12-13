@@ -1,5 +1,5 @@
 import { Veritable } from '../../../src/core/cube/veritable.definition';
-import { Cube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/cube';
 
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
@@ -61,13 +61,13 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
     let w: TestWorld;
     let postsGenDirectVeritum: GetPostsGenerator<Veritum>;
     let postsGenPostInfoVeritum: GetPostsGenerator<PostInfo<Veritum>>;
-    let postsGenDirectCube: GetPostsGenerator<Cube>;
-    let postsGenPostInfoCube: GetPostsGenerator<PostInfo<Cube>>;
+    let postsGenDirectCube: GetPostsGenerator<CoreCube>;
+    let postsGenPostInfoCube: GetPostsGenerator<PostInfo<CoreCube>>;
 
     const postsDirectVeritum: Veritum[] = [];
     const postsPostInfoVeritum: PostInfo<Veritum>[] = [];
-    const postsDirectCube: Cube[] = [];
-    const postsPostInfoCube: PostInfo<Cube>[] = [];
+    const postsDirectCube: CoreCube[] = [];
+    const postsPostInfoCube: PostInfo<CoreCube>[] = [];
 
     beforeAll(async () => {
       // prepare test setup

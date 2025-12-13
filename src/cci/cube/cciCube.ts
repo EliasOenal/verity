@@ -7,7 +7,7 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
-import { Cube } from "../../core/cube/cube";
+import { CoreCube } from "../../core/cube/cube";
 import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 
 import { VerityField } from "./verityField";
@@ -16,7 +16,7 @@ import { FieldType } from "./cciCube.definitions";
 
 import { Buffer } from 'buffer';  // for browsers
 
-export class cciCube extends Cube {
+export class cciCube extends CoreCube {
   static Create(
       options: CubeCreateOptions = {},
   ): cciCube {
@@ -62,7 +62,7 @@ export class cciCube extends Cube {
   /**
    * Sculpt a new bare Cube, starting out without any fields.
    * This is only useful if for some reason you need full control even over
-   * mandatory boilerplate fields. Consider using Cube.Frozen or Cube.MUC
+   * mandatory boilerplate fields. Consider using CoreCube.Frozen or CoreCube.MUC
    * instead, which will sculpt a fully valid frozen Cube or MUC, respectively.
    **/
   constructor(

@@ -1,6 +1,6 @@
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { CubeType, CubeKey, NotificationKey } from '../../../src/core/cube/cube.definitions';
-import { Cube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/cube';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
@@ -578,7 +578,7 @@ describe('VeritumRetriever', () => {
 
         // Just for verification, also test a single Cube retrieval,
         // which for a single Cube Veritum is almost the same thing
-        const cubePromise: Promise<Cube> = retriever.cubeRetriever.getCube(key);
+        const cubePromise: Promise<CoreCube> = retriever.cubeRetriever.getCube(key);
 
         // wait a moment to simulate network latency
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -1440,7 +1440,7 @@ describe('VeritumRetriever', () => {
       });  // notifications retrieved over the wire
     });  // retrieval as Veritum
 
-    describe('retrieval as Cube', () => {
+    describe('retrieval as CoreCube', () => {
       describe('notifications already in store', () => {
         it('retrieves a single-Cube notification', async () => {
           const recipientKey: NotificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xA1) as NotificationKey;
@@ -1507,7 +1507,7 @@ describe('VeritumRetriever', () => {
       });
     });
 
-    describe('retrieval as Cube', () => {
+    describe('retrieval as CoreCube', () => {
       it('can subscribe to notifications in Cube format', async () => {
         const recipientKey: NotificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xA3) as NotificationKey;
 
