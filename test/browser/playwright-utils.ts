@@ -49,10 +49,10 @@ export async function stageTestCubeInBrowser(
   return await page.evaluate(async (c) => {
     try {
       const g: any = (window as any);
-      const cciCube = g.verity?.cciCube || g.cciCube;
+      const Cube = g.verity?.Cube || g.Cube;
       const VerityField = g.verity?.VerityField || g.VerityField || g.verityField;
-      if (!cciCube || !VerityField) {
-        return { success: false, error: 'cciCube or VerityField not exposed globally' };
+      if (!Cube || !VerityField) {
+        return { success: false, error: 'Cube or VerityField not exposed globally' };
       }
       const payload = `${c} :: ${Date.now()} :: ${Math.random()} :: ${(crypto as any)?.randomUUID?.() ?? Math.random()}`;
       const cube = Cube.Create({
@@ -180,10 +180,10 @@ export async function createTestCubeInBrowser(
       const initialCount = await cubeStore.getNumberOfStoredCubes();
 
   // Access CCI constructors from global bundle (prefer namespaced exports)
-  const cciCube = (window as any).verity?.cciCube || (window as any).cciCube;
+  const Cube = (window as any).verity?.Cube || (window as any).Cube;
   const VerityField = (window as any).verity?.VerityField || (window as any).VerityField || (window as any).verityField;
-      if (!cciCube || !VerityField) {
-        return { success: false, error: 'cciCube or VerityField not exposed globally' };
+      if (!Cube || !VerityField) {
+        return { success: false, error: 'Cube or VerityField not exposed globally' };
       }
 
       // Generate unique payload (Nonce + Date fields will also add uniqueness)

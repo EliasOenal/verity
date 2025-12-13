@@ -54,7 +54,7 @@ async function initializeFullNodeTest(): Promise<void> {
       cubeStore: verityNode.cubeStore,
       cockpit: cockpit,  // Add cockpit for cube creation
       VerityField: VerityField,  // Export VerityField for Playwright tests
-      cciCube: Cube, // Expose cciCube for direct CCI cube creation tests
+      cciCube: Cube, // Expose Cube class for direct CCI cube creation tests
       Peer: Peer,  // Export Peer class for connections
       WebSocketAddress: WebSocketAddress,  // Export WebSocketAddress class for connections
       testUtils: {
