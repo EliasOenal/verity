@@ -838,7 +838,7 @@ describe('cubeStore', () => {
             // create two Cubes notifying this receiver --
             // this tests sculpts the Cubes "manually" while the next one will
             // use the convenience helpers
-            const cube1 = new Cube(CubeType.FROZEN_NOTIFY, {
+            const cube1 = new CoreCube(CubeType.FROZEN_NOTIFY, {
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
                 [
@@ -849,7 +849,7 @@ describe('cubeStore', () => {
             });
             await cubeStore.addCube(cube1);
 
-            const cube2 = new Cube(CubeType.FROZEN_NOTIFY, {
+            const cube2 = new CoreCube(CubeType.FROZEN_NOTIFY, {
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
                 [
@@ -962,7 +962,7 @@ describe('cubeStore', () => {
             const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 50);
 
             // Cube without a NOTIFY field
-            const cube = new Cube(CubeType.FROZEN, {
+            const cube = new CoreCube(CubeType.FROZEN, {
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN].fieldDef,
                 [CubeField.RawContent(CubeType.FROZEN, "No notification here")]
@@ -1069,7 +1069,7 @@ describe('cubeStore', () => {
             // Cube with invalid notification field
             // Note the standard Create is too smart and will not allow this;
             // that's why we're hand-crafting the Cube.
-            const invalidCube = new Cube(CubeType.FROZEN_NOTIFY, {
+            const invalidCube = new CoreCube(CubeType.FROZEN_NOTIFY, {
               requiredDifficulty: reducedDifficulty,
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,

@@ -62,7 +62,7 @@ describe('cube', () => {
   describe('constructor (from scratch)', () => {
     it('should construct a cube object from binary data.', () => {
       expect(() => validBinaryCube.length === 1024).toBeTruthy();
-      const cube = new Cube(validBinaryCube);
+      const cube = new CoreCube(validBinaryCube);
       const fields = cube.fields.all;
       fields.forEach(field => {
         expect(field.length).toBeLessThanOrEqual(1024);
@@ -79,13 +79,13 @@ describe('cube', () => {
     }, 3000);
 
     it('construct a Cube object with no fields by default', () => {
-      const cube = new Cube(CubeType.FROZEN);
+      const cube = new CoreCube(CubeType.FROZEN);
       expect(cube.fieldCount).toEqual(0);
     }, 3000);
 
     it('should throw an error when binary data is not the correct length', () => {
-      expect(() => new Cube(Buffer.alloc(512))).toThrow(BinaryLengthError);  // too short
-      expect(() => new Cube(Buffer.alloc(578232))).toThrow(BinaryLengthError);  // too long
+      expect(() => new CoreCube(Buffer.alloc(512))).toThrow(BinaryLengthError);  // too short
+      expect(() => new CoreCube(Buffer.alloc(578232))).toThrow(BinaryLengthError);  // too long
     }, 3000);
 
     // TODO: move this test to CCI or get rid of it
@@ -114,7 +114,7 @@ describe('cube', () => {
       });
       await cube.compile();
 
-      const copy = new Cube(cube);
+      const copy = new CoreCube(cube);
 
       expect(copy).not.toBe(cube);
 
@@ -140,7 +140,7 @@ describe('cube', () => {
 
   describe('setters and getters', () => {
     it('should set and get fields correctly', () => {
-      const cube = new Cube(CubeType.FROZEN, { requiredDifficulty: 0 });
+      const cube = new CoreCube(CubeType.FROZEN, { requiredDifficulty: 0 });
       const fields = new CubeFields([
         CubeField.Type(CubeType.FROZEN),
         CubeField.RawContent(CubeType.FROZEN,
@@ -437,7 +437,7 @@ describe('cube', () => {
           const fields: CubeFields = CubeFields.DefaultPositionals(
             CoreFieldParsers[type].fieldDef, incompleteFieldset);
           // sculpt Cube
-          const cube: CoreCube = new Cube(type, {
+          const cube: CoreCube = new CoreCube(type, {
             fields: fields,
             requiredDifficulty: requiredDifficulty,
           });
@@ -467,7 +467,7 @@ describe('cube', () => {
           }
 
           // decompile the Cube and check if the content is still the same
-          const recontructed: CoreCube = new Cube(binaryData);
+          const recontructed: CoreCube = new CoreCube(binaryData);
           expect(recontructed.cubeType).toBe(type);
           expect(recontructed.getFirstField(RawcontentFieldType[type]!).value).
             toEqual(paddedBuffer(
@@ -539,7 +539,7 @@ describe('cube', () => {
           // compile cube
           const binaryData: Buffer = await cube.getBinaryData();
           // reactivate Cube
-          const reactivate: CoreCube = new Cube(binaryData);
+          const reactivate: CoreCube = new CoreCube(binaryData);
           // run test
           await verifyKey(reactivate);
         });
@@ -575,7 +575,7 @@ describe('cube', () => {
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
         // Create a new MUC with specified TLV fields
-        const muc = new Cube(CubeType.MUC, { requiredDifficulty: requiredDifficulty });
+        const muc = new CoreCube(CubeType.MUC, { requiredDifficulty: requiredDifficulty });
         muc.privateKey = privateKey;
 
         const fields = new CubeFields([
@@ -637,7 +637,7 @@ describe('cube', () => {
         expect(() => muc.validateCube()).not.toThrow();
         // try to re-instantiate
 
-        const parsedMuc = new Cube(binaryData);
+        const parsedMuc = new CoreCube(binaryData);
         expect(parsedMuc).toBeInstanceOf(CoreCube);
         expect(parsedMuc.getKeyIfAvailable().equals(mucKey)).toBeTruthy();
       });
@@ -660,7 +660,7 @@ describe('cube', () => {
         const binMuc: Buffer = await muc.getBinaryData();
         expect(binMuc).toBeInstanceOf(Buffer);
 
-        const coreParsedMuc = new Cube(binMuc);
+        const coreParsedMuc = new CoreCube(binMuc);
         expect(coreParsedMuc).toBeInstanceOf(CoreCube);
         expect(coreParsedMuc.fieldCount).toEqual(6);
         expect(coreParsedMuc.fields.all[0].type).toEqual(CubeFieldType.TYPE);
@@ -696,7 +696,7 @@ describe('cube', () => {
         binaryData[4] = 42;  // not the right answer after all
 
         // Attempt to restore MUC
-        expect(() => new Cube(binaryData)).toThrow(CubeSignatureError);
+        expect(() => new CoreCube(binaryData)).toThrow(CubeSignatureError);
       })
 
       it("should present a MUC's key even if it's hash is not yet known", () => {
