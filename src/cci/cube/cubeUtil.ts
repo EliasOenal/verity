@@ -1,9 +1,9 @@
-import { CoreCube } from "../../core/cube/cube";
-import { CubeCreateOptions } from '../../core/cube/cube.definitions';
-import { CubeType } from "../../core/cube/cube.definitions";
+import { CoreCube } from "../../core/cube/coreCube";
+import { CubeCreateOptions } from '../../core/cube/coreCube.definitions';
+import { CubeType } from "../../core/cube/coreCube.definitions";
 import { Settings } from "../../core/settings";
 import { deriveSigningKeypair, KeyPair } from "../helpers/cryptography";
-import { Cube, cciFamily } from "./cciCube";
+import { Cube, cciFamily } from "./cube";
 import { VerityField } from "./verityField";
 import { VerityFields } from "./verityFields";
 

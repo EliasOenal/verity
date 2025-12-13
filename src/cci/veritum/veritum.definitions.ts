@@ -1,12 +1,12 @@
-import type { CubeCreateOptions } from "../../core/cube/cube.definitions";
+import type { CubeCreateOptions } from "../../core/cube/coreCube.definitions";
 
-import type { Cube } from "../cube/cciCube";
+import type { Cube } from "../cube/cube";
 import type { CciDecryptionParams, CciEncryptionParams } from "./encryption.definitions";
 import type { VerityField } from "../cube/verityField";
 
 import type { DoublyLinkedListNode } from "data-structure-typed";
 
-import { FieldType } from "../cube/cciCube.definitions";
+import { FieldType } from "../cube/cube.definitions";
 
 export interface VeritumCreateOptions extends VeritumCompileOptions {
   /**

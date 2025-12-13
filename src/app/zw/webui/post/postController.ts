@@ -1,10 +1,10 @@
-import { CubeKey } from "../../../../core/cube/cube.definitions";
-import { CoreCube } from "../../../../core/cube/cube";
+import { CubeKey } from "../../../../core/cube/coreCube.definitions";
+import { CoreCube } from "../../../../core/cube/coreCube";
 import { asCubeKey, keyVariants } from "../../../../core/cube/keyUtil";
 import { logger } from "../../../../core/logger";
 
-import { FieldType } from "../../../../cci/cube/cciCube.definitions";
-import { Cube } from "../../../../cci/cube/cciCube";
+import { FieldType } from "../../../../cci/cube/cube.definitions";
+import { Cube } from "../../../../cci/cube/cube";
 import { RelationshipType } from "../../../../cci/cube/relationship";
 import { RecursiveRelResolvingGetPostsGenerator, PostInfo, RecursiveRelResolvingPostInfo } from "../../../../cci/identity/identity.definitions";
 import { Identity } from "../../../../cci/identity/identity";

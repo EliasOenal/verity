@@ -1,5 +1,5 @@
-import { CoreCube } from '../../../src/core/cube/cube';
-import { CubeKey } from '../../../src/core/cube/cube.definitions';
+import { CoreCube } from '../../../src/core/cube/coreCube';
+import { CubeKey } from '../../../src/core/cube/coreCube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';

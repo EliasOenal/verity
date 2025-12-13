@@ -1,5 +1,5 @@
 import { SupportedTransports } from "../../../src/core/networking/networkDefinitions";
-import { CubeKey } from "../../../src/core/cube/cube.definitions";
+import { CubeKey } from "../../../src/core/cube/coreCube.definitions";
 import { keyVariants } from "../../../src/core/cube/keyUtil";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { CubeRetriever } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
@@ -10,7 +10,7 @@ import { WebSocketAddress } from "../../../src/core/peering/addressing";
 import { PeerDB } from "../../../src/core/peering/peerDB";
 import { Peer } from "../../../src/core/peering/peer";
 
-import { Cube } from "../../../src/cci/cube/cciCube";
+import { Cube } from "../../../src/cci/cube/cube";
 import { Identity } from "../../../src/cci/identity/identity";
 import { Avatar, AvatarScheme } from "../../../src/cci/identity/avatar";
 

@@ -1,6 +1,6 @@
 import { KeyPair } from "../../../src/cci/helpers/cryptography";
-import { CoreCube } from "../../../src/core/cube/cube";
-import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
+import { CubeKey, CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { calculateHash } from "../../../src/core/cube/cubeUtil";

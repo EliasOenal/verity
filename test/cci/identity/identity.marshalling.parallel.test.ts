@@ -1,4 +1,4 @@
-import { Cube, cciFamily } from "../../../src/cci/cube/cciCube";
+import { Cube, cciFamily } from "../../../src/cci/cube/cube";
 import { Identity } from "../../../src/cci/identity/identity";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 

@@ -1,11 +1,11 @@
 import { Buffer } from 'buffer';
-import { Cube } from '../cci/cube/cciCube';
+import { Cube } from '../cci/cube/cube';
 import { VerityField } from '../cci/cube/verityField';
-import { FieldType } from '../cci/cube/cciCube.definitions';
-import { CubeType, NotificationKey } from '../core/cube/cube.definitions';
+import { FieldType } from '../cci/cube/cube.definitions';
+import { CubeType, NotificationKey } from '../core/cube/coreCube.definitions';
 import { CubeField } from '../core/cube/cubeField';
 import { logger } from '../core/logger';
-import { CoreCube } from '../core/cube/cube';
+import { CoreCube } from '../core/cube/coreCube';
 
 export class ChatApplication {
     private static readonly APPLICATION_IDENTIFIER = 'chat';

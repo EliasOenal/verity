@@ -1,8 +1,8 @@
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { CoreCube } from '../../../src/core/cube/cube';
-import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { CoreCube } from '../../../src/core/cube/coreCube';
+import { CubeKey, CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeField } from '../../../src/core/cube/cubeField';

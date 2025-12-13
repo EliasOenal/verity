@@ -7,8 +7,8 @@ import { BaseField } from '../../../src/core/fields/baseField';
 import { BaseFields } from '../../../src/core/fields/baseFields';
 import { FieldParser } from '../../../src/core/fields/fieldParser';
 
-import { BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey, RawcontentFieldType } from '../../../src/core/cube/cube.definitions';
-import { CoreCube, coreCubeFamily } from '../../../src/core/cube/cube';
+import { BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey, RawcontentFieldType } from '../../../src/core/cube/coreCube.definitions';
+import { CoreCube, coreCubeFamily } from '../../../src/core/cube/coreCube';
 import { calculateHash, countTrailingZeroBits, paddedBuffer, verifySignature } from '../../../src/core/cube/cubeUtil';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition, CoreFieldParsers } from '../../../src/core/cube/cubeFields';

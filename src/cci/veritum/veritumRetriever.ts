@@ -1,12 +1,12 @@
-import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
+import type { CubeKey, NotificationKey } from "../../core/cube/coreCube.definitions";
 import type { Shuttable } from "../../core/helpers/coreInterfaces";
-import type { CoreCube } from "../../core/cube/cube";
+import type { CoreCube } from "../../core/cube/coreCube";
 import type { CubeInfo } from "../../core/cube/cubeInfo";
 import type { CubeRequestOptions, RequestScheduler } from "../../core/networking/cubeRetrieval/requestScheduler";
 import type { Veritable } from "../../core/cube/veritable.definition";
 import type { CubeStore } from "../../core/cube/cubeStore";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
-import type { Cube } from "../cube/cciCube";
+import type { Cube } from "../cube/cube";
 
 import { Settings } from "../../core/settings";
 import { ArrayFromAsync } from "../../core/helpers/misc";

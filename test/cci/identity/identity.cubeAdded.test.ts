@@ -1,13 +1,13 @@
 import { RecursiveEmitter } from '../../../src/core/helpers/recursiveEmitter';
-import { CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity'
-import { Cube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { VerityField } from '../../../src/cci/cube/verityField';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 
 import { testCubeStoreParams } from '../testcci.definitions';
 

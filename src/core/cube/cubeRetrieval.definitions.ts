@@ -1,5 +1,5 @@
-import type { CubeKey, GetCubeOptions, NotificationKey } from "./cube.definitions";
-import type { CoreCube } from "./cube";
+import type { CubeKey, GetCubeOptions, NotificationKey } from "./coreCube.definitions";
+import type { CoreCube } from "./coreCube";
 import type { CubeInfo } from "./cubeInfo";
 import type { CubeStore } from "./cubeStore";
 import type { Veritable } from "./veritable.definition";

@@ -1,9 +1,9 @@
-import { Cube } from "../../../src/cci/cube/cciCube";
-import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { Cube } from "../../../src/cci/cube/cube";
+import { MediaTypes, FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Recombine } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
-import { CubeType, CubeKey, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CubeType, CubeKey, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import { evenLonger, tooLong } from "../testcci.definitions";

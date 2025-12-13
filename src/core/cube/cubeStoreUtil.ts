@@ -1,6 +1,6 @@
 import { NetConstants } from "../networking/networkDefinitions";
-import { CoreCube } from "./cube";
-import { CubeType, CubeFieldType, CubeError, NotificationKey, CubeKey } from "./cube.definitions";
+import { CoreCube } from "./coreCube";
+import { CubeType, CubeFieldType, CubeError, NotificationKey, CubeKey } from "./coreCube.definitions";
 import { CubeStore } from "./cubeStore";
 import { logger } from "../logger";
 import { Sublevels } from "./levelBackend";

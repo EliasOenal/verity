@@ -3,10 +3,10 @@ import type { CubeField } from "../../core/cube/cubeField";
 import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeFields, FieldParserTable } from "../../core/cube/cubeFields";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
-import { CubeType, FrozenNotifyPositionalBack, FrozenPositionalBack, FrozenPositionalFront, MucNotifyPositionalBack, MucPositionalBack, MucPositionalFront, PicNotifyPositionalBack, PicPositionalBack, PicPositionalFront, PmucNotifyPositionalBack, PmucPositionalBack, PmucPositionalFront } from "../../core/cube/cube.definitions";
+import { CubeType, FrozenNotifyPositionalBack, FrozenPositionalBack, FrozenPositionalFront, MucNotifyPositionalBack, MucPositionalBack, MucPositionalFront, PicNotifyPositionalBack, PicPositionalBack, PicPositionalFront, PmucNotifyPositionalBack, PmucPositionalBack, PmucPositionalFront } from "../../core/cube/coreCube.definitions";
 import { FrozenDefaultFields, FrozenNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields } from "../../core/cube/cubeField";
 
-import { FieldType, FieldLength } from "./cciCube.definitions";
+import { FieldType, FieldLength } from "./cube.definitions";
 import { VerityField } from "./verityField";
 import { Relationship, RelationshipType } from "./relationship";
 

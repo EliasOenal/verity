@@ -1,8 +1,8 @@
 import { Veritable } from '../../../src/core/cube/veritable.definition';
-import { CoreCube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 
-import { Cube } from '../../../src/cci/cube/cciCube';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { Cube } from '../../../src/cci/cube/cube';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { Relationship, RelationshipType } from '../../../src/cci/cube/relationship';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { ResolveRelsRecursiveResult } from '../../../src/cci/veritum/veritumRetrievalUtil';

@@ -13,10 +13,10 @@ import { CubeRequest } from "../../../../src/core/networking/cubeRetrieval/pendi
 import { DummyNetworkManager } from "../../../../src/core/networking/testingDummies/dummyNetworkManager";
 import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies/dummyNetworkPeer';
 
-import { CoreCube } from "../../../../src/core/cube/cube";
+import { CoreCube } from "../../../../src/core/cube/coreCube";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 import { CubeField } from "../../../../src/core/cube/cubeField";
-import { CubeFieldType, CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/coreCube.definitions";
 import { CubeStore } from "../../../../src/core/cube/cubeStore";
 import { asNotificationKey } from "../../../../src/core/cube/keyUtil";
 

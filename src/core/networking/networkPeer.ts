@@ -8,11 +8,11 @@ import { TransportConnection } from './transport/transportConnection';
 import { NetworkPeerIf, NetworkPeerLifecycle, NetworkPeerOptions, NetworkStats } from './networkPeerIf';
 import { NetworkManagerIf } from './networkManagerIf';
 
-import { CubeKey, NotificationKey } from '../cube/cube.definitions';
+import { CubeKey, NotificationKey } from '../cube/coreCube.definitions';
 import { CubeStore } from '../cube/cubeStore';
 import { CubeInfo } from '../cube/cubeInfo';
 import { Sublevels } from '../cube/levelBackend';
-import { CoreCube } from '../cube/cube';
+import { CoreCube } from '../cube/coreCube';
 import { keyVariants } from '../cube/keyUtil';
 
 import { WebSocketAddress, AddressAbstraction } from '../peering/addressing';

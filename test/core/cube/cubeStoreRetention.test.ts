@@ -1,7 +1,7 @@
 import { Settings } from '../../../src/core/settings';
-import { CoreCube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
-import { CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';

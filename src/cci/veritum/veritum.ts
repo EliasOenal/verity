@@ -1,10 +1,10 @@
 import type { Veritable } from "../../core/cube/veritable.definition";
 
-import { VeritableBaseImplementation } from "../../core/cube/cube";
-import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/cube.definitions";
+import { VeritableBaseImplementation } from "../../core/cube/coreCube";
+import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/coreCube.definitions";
 import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
 
-import { Cube, cciFamily } from "../cube/cciCube";
+import { Cube, cciFamily } from "../cube/cube";
 import { Relationship, RelationshipType } from "../cube/relationship";
 import { VerityFields } from "../cube/verityFields";
 import { Split, Recombine } from "./continuation";

@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { PostController, PostData } from '../../../../src/app/zw/webui/post/postController';
 import { DummyControllerContext } from '../../../../src/webui/testingDummies';
 import { loadZwTemplate } from '../ui/zwUiTestSetup';
-import type { Cube } from '../../../../src/cci/cube/cciCube';
+import type { Cube } from '../../../../src/cci/cube/cube';
 import type { Identity } from '../../../../src/cci/identity/identity';
 
 /**

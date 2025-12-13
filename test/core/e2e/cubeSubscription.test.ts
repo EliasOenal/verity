@@ -1,5 +1,5 @@
-import { CoreCube } from "../../../src/core/cube/cube";
-import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
+import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { asCubeKey, keyVariants } from "../../../src/core/cube/keyUtil";

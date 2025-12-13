@@ -2,13 +2,13 @@ import sodium from 'libsodium-wrappers-sumo'
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
-import { Cube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { testCciOptions } from '../testcci.definitions';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
 import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
-import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
+import { CubeKey, CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', () => {

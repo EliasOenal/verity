@@ -9,20 +9,20 @@ import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
 import { logger } from '../../core/logger';
 
 import { Veritable } from '../../core/cube/veritable.definition';
-import { CoreCube } from '../../core/cube/cube';
+import { CoreCube } from '../../core/cube/coreCube';
 import { asCubeKey, KeyVariants, keyVariants } from '../../core/cube/keyUtil';
 import { CubeStore } from '../../core/cube/cubeStore';
 import { CubeEmitter, CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import { CubeInfo } from '../../core/cube/cubeInfo';
-import { CubeKey, CubeType } from '../../core/cube/cube.definitions';
+import { CubeKey, CubeType } from '../../core/cube/coreCube.definitions';
 
-import { FieldLength, FieldType } from '../cube/cciCube.definitions';
+import { FieldLength, FieldType } from '../cube/cube.definitions';
 import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
 import { VerityField } from '../cube/verityField';
 import { VerityFields, cciPmucFieldDefinition, cciPmucParser } from '../cube/verityFields';
 import { Relationship, RelationshipType } from '../cube/relationship';
-import { Cube, cciFamily } from '../cube/cciCube';
-import { ensureCci, extensionMuc } from '../cube/cciCubeUtil';
+import { Cube, cciFamily } from '../cube/cube';
+import { ensureCci, extensionMuc } from '../cube/cubeUtil';
 
 import { RetrievalFormat } from '../veritum/veritum.definitions';
 import { Veritum } from '../veritum/veritum';

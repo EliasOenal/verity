@@ -1,4 +1,4 @@
-import { Cube } from "../../../src/cci/cube/cciCube";
+import { Cube } from "../../../src/cci/cube/cube";
 import { CrpytographyError } from "../../../src/cci/helpers/cryptography";
 import { Identity } from "../../../src/cci/identity/identity";
 import { CubeStore } from "../../../src/core/cube/cubeStore";

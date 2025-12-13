@@ -1,10 +1,10 @@
 Error.stackTraceLimit = Infinity;  // mooooaaaar stacktraces
 
-import { CubeType, NotificationKey } from './core/cube/cube.definitions';
+import { CubeType, NotificationKey } from './core/cube/coreCube.definitions';
 import { Settings } from './core/settings';
 import { SupportedTransports } from './core/networking/networkDefinitions';
 
-import { CoreCube } from './core/cube/cube';
+import { CoreCube } from './core/cube/coreCube';
 import { CubeField } from './core/cube/cubeField';
 import { CoreNode, CoreNodeOptions, defaultInitialPeers } from "./core/coreNode";
 import { AddressAbstraction } from './core/peering/addressing';

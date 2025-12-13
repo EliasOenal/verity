@@ -1,10 +1,10 @@
-import { CubeFieldType, CubeType, NotificationKey, RawcontentFieldType } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeType, NotificationKey, RawcontentFieldType } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields } from "../../../src/core/cube/cubeFields";
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import type { FieldParser } from "../../../src/core/fields/fieldParser";
-import { coreCubeFamily } from "../../../src/core/cube/cube";
+import { coreCubeFamily } from "../../../src/core/cube/coreCube";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 

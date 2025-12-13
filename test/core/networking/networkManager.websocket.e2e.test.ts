@@ -9,11 +9,11 @@ import { WebSocketServer } from '../../../src/core/networking/transport/webSocke
 import { WebSocketConnection } from '../../../src/core/networking/transport/webSocket/webSocketConnection';
 import { NetworkPeerIf, NetworkPeerLifecycle } from '../../../src/core/networking/networkPeerIf';
 
-import { CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/cube.definitions';
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
 import { cubeContest, cubeExpiration, cubeLifetime } from '../../../src/core/cube/cubeUtil';
 import { asCubeKey } from '../../../src/core/cube/keyUtil';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
-import { CoreCube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
 import { CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';

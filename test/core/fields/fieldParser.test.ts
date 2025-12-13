@@ -3,12 +3,12 @@ import { FieldDefinition, FieldNumericalParam, FieldParser, PositionalFields } f
 import { BaseField } from "../../../src/core/fields/baseField";
 import { BaseFields } from "../../../src/core/fields/baseFields";
 
-import { BinaryDataError, CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/cube.definitions";
+import { BinaryDataError, CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields } from "../../../src/core/cube/cubeFields";
 import { VerityFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/verityFields";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { FieldType } from "../../../src/cci/cube/cube.definitions";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 

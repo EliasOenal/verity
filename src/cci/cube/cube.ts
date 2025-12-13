@@ -6,13 +6,13 @@ import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { FieldPosition } from "../../core/fields/baseFields";
-import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
-import { CoreCube } from "../../core/cube/cube";
-import { CubeCreateOptions } from '../../core/cube/cube.definitions';
+import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/coreCube.definitions";
+import { CoreCube } from "../../core/cube/coreCube";
+import { CubeCreateOptions } from '../../core/cube/coreCube.definitions';
 
 import { VerityField } from "./verityField";
 import { VerityFields, cciFieldParsers } from "./verityFields";
-import { FieldType } from "./cciCube.definitions";
+import { FieldType } from "./cube.definitions";
 
 import { Buffer } from 'buffer';  // for browsers
 

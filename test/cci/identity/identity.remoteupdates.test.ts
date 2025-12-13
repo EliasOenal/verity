@@ -1,9 +1,9 @@
-import { CubeKey } from '../../../src/core/cube/cube.definitions';
+import { CubeKey } from '../../../src/core/cube/coreCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { Cube } from '../../../src/cci/cube/cciCube';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { Cube } from '../../../src/cci/cube/cube';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';

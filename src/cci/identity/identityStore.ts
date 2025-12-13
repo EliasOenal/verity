@@ -1,7 +1,7 @@
-import type { CubeKey } from "../../core/cube/cube.definitions";
+import type { CubeKey } from "../../core/cube/coreCube.definitions";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import type { Shuttable } from "../../core/helpers/coreInterfaces";
-import type { Cube } from "../cube/cciCube";
+import type { Cube } from "../cube/cube";
 
 import type { IdentityOptions } from "./identity.definitions";
 

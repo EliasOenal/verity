@@ -4,11 +4,11 @@
 //  setup to help identify whether a bug originates on the VeritumRetriever (CCI)
 //  or CubeRetriever (core) level.
 
-import { CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../../src/core/cube/cube.definitions';
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../../src/core/cube/coreCube.definitions';
 import { CubeField } from '../../../../src/core/cube/cubeField';
 import { NetConstants } from '../../../../src/core/networking/networkDefinitions';
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
-import { CoreCube } from '../../../../src/core/cube/cube';
+import { CoreCube } from '../../../../src/core/cube/coreCube';
 import { CubeRetriever } from '../../../../src/core/networking/cubeRetrieval/cubeRetriever';
 import { CubeStore } from '../../../../src/core/cube/cubeStore';
 import { RequestScheduler } from '../../../../src/core/networking/cubeRetrieval/requestScheduler';

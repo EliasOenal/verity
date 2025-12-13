@@ -1,11 +1,11 @@
 import type { CubeRetrievalInterface } from "../core/cube/cubeRetrieval.definitions";
-import type { CubeKey } from '../core/cube/cube.definitions';
+import type { CubeKey } from '../core/cube/coreCube.definitions';
 
-import { CubeType } from '../core/cube/cube.definitions';
+import { CubeType } from '../core/cube/coreCube.definitions';
 
-import { FieldType } from '../cci/cube/cciCube.definitions';
+import { FieldType } from '../cci/cube/cube.definitions';
 import { VerityField } from '../cci/cube/verityField';
-import { Cube } from '../cci/cube/cciCube';
+import { Cube } from '../cci/cube/cube';
 import { Relationship, RelationshipType } from '../cci/cube/relationship';
 
 import { Buffer } from 'buffer';

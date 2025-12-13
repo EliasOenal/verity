@@ -1,8 +1,8 @@
 import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
 
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
-import { CoreCube } from "../../../../src/core/cube/cube";
-import { CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../../src/core/cube/coreCube";
+import { CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 import { CubeStore } from "../../../../src/core/cube/cubeStore";

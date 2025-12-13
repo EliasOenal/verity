@@ -3,8 +3,8 @@ import { ApiMisuseError, Settings } from "../settings";
 
 import { Shuttable } from "../helpers/coreInterfaces";
 
-import { CubeType, CubeKey, CubeFieldType, HasNotify, NotificationKey } from "./cube.definitions";
-import { CoreCube, coreCubeFamily } from "./cube";
+import { CubeType, CubeKey, CubeFieldType, HasNotify, NotificationKey } from "./coreCube.definitions";
+import { CoreCube, coreCubeFamily } from "./coreCube";
 import { CubeFamilyDefinition } from "./cubeFields";
 import { CubeInfo } from "./cubeInfo";
 import { cubeContest, shouldRetainCube, getCurrentEpoch, activateCube } from "./cubeUtil";
@@ -20,7 +20,7 @@ import { EventEmitter } from "events";
 import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
 import { CubeEmitterEvents, CubeRetrievalInterface, CubeEmitter, CubeIteratorOptions, CubeIteratorOptionsSublevel } from "./cubeRetrieval.definitions";
-import { GetCubeOptions } from "./cube.definitions";
+import { GetCubeOptions } from "./coreCube.definitions";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes

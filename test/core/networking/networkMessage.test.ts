@@ -1,5 +1,5 @@
-import { CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
-import { CoreCube } from "../../../src/core/cube/cube";
+import { CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { MessageClass, NetConstants, NodeType } from "../../../src/core/networking/networkDefinitions";
 import { NetworkMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, CubeRequestMessage, CubeResponseMessage, ServerAddressMessage, PeerRequestMessage, PeerResponseMessage, KeyRequestMode, SubscriptionResponseCode, SubscriptionConfirmationMessage } from "../../../src/core/networking/networkMessage";

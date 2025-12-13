@@ -1,7 +1,7 @@
-import { CoreCube } from "../../../src/core/cube/cube";
+import { CoreCube } from "../../../src/core/cube/coreCube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
-import { Cube } from "../../../src/cci/cube/cciCube";
+import { Cube } from "../../../src/cci/cube/cube";
 import { IdentityOptions } from "../../../src/cci/identity/identity.definitions";
 import { Identity } from "../../../src/cci/identity/identity";
 import { VeritumRetriever } from "../../../src/cci/veritum/veritumRetriever";

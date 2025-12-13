@@ -1,12 +1,12 @@
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { CubeError, CubeKey, CubeType, NonNotifyCubeType, NotifyCubeType } from "../../core/cube/cube.definitions";
-import { CoreCube } from "../../core/cube/cube";
+import { CubeError, CubeKey, CubeType, NonNotifyCubeType, NotifyCubeType } from "../../core/cube/coreCube.definitions";
+import { CoreCube } from "../../core/cube/coreCube";
 import { FieldParser } from "../../core/fields/fieldParser";
 
-import { Cube } from "../cube/cciCube";
-import { FieldType } from "../cube/cciCube.definitions";
+import { Cube } from "../cube/cube";
+import { FieldType } from "../cube/cube.definitions";
 import { VerityField } from "../cube/verityField";
 import { VerityFields } from "../cube/verityFields";
 import { Relationship, RelationshipType } from "../cube/relationship";

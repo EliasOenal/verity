@@ -1,7 +1,7 @@
 import type { MergedAsyncGenerator } from "../../core/helpers/asyncGenerators";
 
-import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
-import type { CoreCube } from "../../core/cube/cube";
+import type { CubeKey, NotificationKey } from "../../core/cube/coreCube.definitions";
+import type { CoreCube } from "../../core/cube/coreCube";
 import type { CubeEmitterEvents } from "../../core/cube/cubeRetrieval.definitions";
 
 import type { CubeRequestOptions } from "../../core/networking/cubeRetrieval/requestScheduler";

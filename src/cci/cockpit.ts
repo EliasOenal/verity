@@ -1,7 +1,7 @@
-import type { CubeKey, NotificationKey } from "../core/cube/cube.definitions";
+import type { CubeKey, NotificationKey } from "../core/cube/coreCube.definitions";
 
-import { CoreCube } from "../core/cube/cube";
-import { CubeCreateOptions } from '../core/cube/cube.definitions';
+import { CoreCube } from "../core/cube/coreCube";
+import { CubeCreateOptions } from '../core/cube/coreCube.definitions';
 import { CubeInfo } from "../core/cube/cubeInfo";
 import { CubeStore } from "../core/cube/cubeStore";
 import { Veritable } from "../core/cube/veritable.definition";
@@ -11,7 +11,7 @@ import { FieldPosition } from "../core/fields/baseFields";
 import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
 
 import { dummyVerityNode, VerityNodeIf, VerityNodeOptions } from "./verityNode";
-import { Cube } from "./cube/cciCube";
+import { Cube } from "./cube/cube";
 import { Relationship, RelationshipType } from "./cube/relationship";
 import { VerityField } from "./cube/verityField";
 import { Identity } from "./identity/identity";

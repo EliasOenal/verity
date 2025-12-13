@@ -1,6 +1,6 @@
-import { CubeKey } from '../core/cube/cube.definitions';
+import { CubeKey } from '../core/cube/coreCube.definitions';
 import { CubeInfo } from '../core/cube/cubeInfo'
-import { CoreCube } from '../core/cube/cube';
+import { CoreCube } from '../core/cube/coreCube';
 
 import { VerityFields } from './cube/verityFields';
 import { Relationship } from './cube/relationship';

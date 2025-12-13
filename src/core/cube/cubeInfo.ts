@@ -1,10 +1,10 @@
 import { NetConstants } from '../networking/networkDefinitions';
 import { ApiMisuseError } from '../settings';
 
-import { CubeType, CubeKey, CubeFieldType } from './cube.definitions';
-import { CoreCube, coreCubeFamily } from './cube'
+import { CubeType, CubeKey, CubeFieldType } from './coreCube.definitions';
+import { CoreCube, coreCubeFamily } from './coreCube'
 import { CubeFamilyDefinition } from './cubeFields';
-import { GetCubeOptions } from "./cube.definitions";
+import { GetCubeOptions } from "./coreCube.definitions";
 import { activateCube, dateFromBinary, typeFromBinary } from './cubeUtil';
 import { logger } from '../logger';
 

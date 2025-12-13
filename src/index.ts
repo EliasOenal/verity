@@ -1,9 +1,9 @@
 /**
  * Verity - Main API
- * 
+ *
  * This is the primary public-facing API for Verity applications.
  * Most applications should import from this module.
- * 
+ *
  * For low-level core functionality, use `import {} from "verity/core"`.
  */
 
@@ -18,12 +18,12 @@ export { VerityNode, dummyVerityNode } from './cci/verityNode.js';
 export type { VerityNodeIf, VerityNodeOptions } from './cci/verityNode.js';
 
 // Cube API
-export { Cube, cubeFamily } from './cci/cube/cciCube.js';
-export type { CubeCreateOptions, CubeType, CubeKey, NotificationKey } from './core/cube/cube.definitions.js';
+export { Cube, cciFamily } from './cci/cube/cube.js';
+export type { CubeCreateOptions, CubeType, CubeKey, NotificationKey } from './core/cube/coreCube.definitions.js';
 
 export { VerityField } from './cci/cube/verityField.js';
-export { VerityFields, frozenFieldDefinition, picFieldDefinition, mucFieldDefinition, pmucFieldDefinition } from './cci/cube/verityFields.js';
-export { FieldType, MediaTypes } from './cci/cube/cciCube.definitions.js';
+export { VerityFields } from './cci/cube/verityFields.js';
+export { FieldType, MediaTypes } from './cci/cube/cube.definitions.js';
 
 export { Relationship, RelationshipType } from './cci/cube/relationship.js';
 
@@ -40,8 +40,8 @@ export type { AvatarSeed } from './cci/identity/avatar.js';
 export { VeritumRetriever } from './cci/veritum/veritumRetriever.js';
 export type { GetVeritumOptions, VeritumRetrievalInterface } from './cci/veritum/veritumRetriever.js';
 
-// Annotation Engine
-export { AnnotationEngine } from './cci/annotationEngine.js';
+// Annotation Engine -- currently unused
+// export { AnnotationEngine } from './cci/annotationEngine.js';
 
 // Utility functions
 export { deriveSigningKeypair, deriveEncryptionKeypair } from './cci/helpers/cryptography.js';
@@ -57,4 +57,4 @@ export { asCubeKey, asNotificationKey, keyVariants } from './core/cube/keyUtil.j
 export { CubeInfo } from './core/cube/cubeInfo.js';
 
 // Error types that applications may need to catch
-export * from './core/cube/cube.definitions.js';  // CubeError, FieldError, etc.
+export * from './core/cube/coreCube.definitions.js';  // CubeError, FieldError, etc.

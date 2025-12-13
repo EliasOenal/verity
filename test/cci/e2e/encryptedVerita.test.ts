@@ -1,10 +1,10 @@
-import type { CubeKey } from "../../../src/core/cube/cube.definitions";
+import type { CubeKey } from "../../../src/core/cube/coreCube.definitions";
 import type { CubeInfo } from "../../../src/core/cube/cubeInfo";
-import type { Cube } from "../../../src/cci/cube/cciCube";
+import type { Cube } from "../../../src/cci/cube/cube";
 
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
-import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Identity } from "../../../src/cci/identity/identity";
 import { Veritum } from "../../../src/cci/veritum/veritum";

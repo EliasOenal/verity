@@ -2,10 +2,10 @@ import { VerityError } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
-import { CubeKey } from '../../../src/core/cube/cube.definitions';
+import { CubeKey } from '../../../src/core/cube/coreCube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { Cube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity'
 import { IdentityStore } from '../../../src/cci/identity/identityStore';

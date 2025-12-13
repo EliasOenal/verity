@@ -1,13 +1,13 @@
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
-import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeKey, CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Identity } from '../../../src/cci/identity/identity'
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
-import { Cube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { VerityField } from '../../../src/cci/cube/verityField';
 
 import { testCubeStoreParams } from '../testcci.definitions';

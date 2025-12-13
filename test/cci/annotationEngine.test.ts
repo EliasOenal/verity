@@ -1,9 +1,9 @@
-import { CoreCube } from '../../src/core/cube/cube';
+import { CoreCube } from '../../src/core/cube/coreCube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
 import { VerityField } from '../../src/cci/cube/verityField';
 import { Relationship, RelationshipType } from '../../src/cci/cube/relationship';
-import { Cube } from '../../src/cci/cube/cciCube';
+import { Cube } from '../../src/cci/cube/cube';
 import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotationEngine';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'

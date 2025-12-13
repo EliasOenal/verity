@@ -1,10 +1,10 @@
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-import { Cube } from "../../../../src/cci/cube/cciCube";
+import { Cube } from "../../../../src/cci/cube/cube";
 import { TestWorld } from "../testWorld";
 import { explorePostGenerator, isPostDisplayable, wotPostGenerator } from '../../../../src/app/zw/model/zwUtil';
 import { PostInfo, RecursiveRelResolvingPostInfo } from '../../../../src/cci/identity/identity.definitions';
-import { CoreCube } from '../../../../src/core/cube/cube';
+import { CoreCube } from '../../../../src/core/cube/coreCube';
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
 import { IdentityStore } from '../../../../src/cci/identity/identityStore';

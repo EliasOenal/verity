@@ -1,9 +1,9 @@
 // cubeUtil.ts
 import { NetConstants } from '../networking/networkDefinitions';
 
-import { CubeError, CubeKey, CubeType, NonNotifyCubeType } from './cube.definitions';
+import { CubeError, CubeKey, CubeType, NonNotifyCubeType } from './coreCube.definitions';
 import { CubeFamilyDefinition } from './cubeFields';
-import { CoreCube } from './cube';
+import { CoreCube } from './coreCube';
 import { CubeInfo } from './cubeInfo';
 
 import { logger } from '../logger';

@@ -3,8 +3,8 @@ import { Veritable } from "../../core/cube/veritable.definition";
 import { logger } from "../../core/logger";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { FieldLength, FieldType } from "../cube/cciCube.definitions";
-import { Cube } from "../cube/cciCube";
+import { FieldLength, FieldType } from "../cube/cube.definitions";
+import { Cube } from "../cube/cube";
 import { VerityField } from "../cube/verityField";
 import { VerityFields } from "../cube/verityFields";
 

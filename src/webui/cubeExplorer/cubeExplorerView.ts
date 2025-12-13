@@ -1,7 +1,7 @@
-import { FieldType } from "../../cci/cube/cciCube.definitions";
+import { FieldType } from "../../cci/cube/cube.definitions";
 import { Relationship, RelationshipType } from "../../cci/cube/relationship";
-import { CoreCube } from "../../core/cube/cube";
-import { CubeType } from "../../core/cube/cube.definitions";
+import { CoreCube } from "../../core/cube/coreCube";
+import { CubeType } from "../../core/cube/coreCube.definitions";
 import { CubeField } from "../../core/cube/cubeField";
 import { isPrintable } from "../../core/helpers/misc";
 import { logger } from "../../core/logger";

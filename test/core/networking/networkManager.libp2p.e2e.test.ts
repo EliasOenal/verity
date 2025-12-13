@@ -10,8 +10,8 @@ import { Libp2pConnection } from '../../../src/core/networking/transport/libp2p/
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
 import { AddressAbstraction } from '../../../src/core/peering/addressing';
 
-import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
-import { CoreCube } from '../../../src/core/cube/cube';
+import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/coreCube.definitions';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields } from '../../../src/core/cube/cubeFields';

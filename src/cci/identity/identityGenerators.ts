@@ -1,11 +1,11 @@
-import type { CoreCube } from "../../core/cube/cube";
-import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
+import type { CoreCube } from "../../core/cube/coreCube";
+import type { CubeKey, NotificationKey } from "../../core/cube/coreCube.definitions";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
-import type { Cube } from "../cube/cciCube";
+import type { Cube } from "../cube/cube";
 import type { IdentityStore } from "./identityStore";
 
 import { MergedAsyncGenerator, mergeAsyncGenerators } from "../../core/helpers/asyncGenerators";
-import { isCci } from "../cube/cciCubeUtil";
+import { isCci } from "../cube/cubeUtil";
 import { Identity } from "./identity";
 import { RetrievalFormat } from "../veritum/veritum.definitions";
 

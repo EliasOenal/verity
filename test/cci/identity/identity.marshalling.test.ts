@@ -1,12 +1,12 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { asNotificationKey } from "../../../src/core/cube/keyUtil";
-import { CoreCube } from "../../../src/core/cube/cube";
+import { CoreCube } from "../../../src/core/cube/coreCube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
-import { FieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
+import { FieldType, MediaTypes } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { Cube, cciFamily } from "../../../src/cci/cube/cciCube";
+import { Cube, cciFamily } from "../../../src/cci/cube/cube";
 import { IdentityOptions } from "../../../src/cci/identity/identity.definitions";
 import { Identity } from "../../../src/cci/identity/identity";
 import { cciFieldParsers, VerityFields } from "../../../src/cci/cube/verityFields";

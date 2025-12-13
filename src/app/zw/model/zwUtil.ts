@@ -6,20 +6,20 @@
 import { Settings } from "../../../core/settings";
 import { NetConstants } from "../../../core/networking/networkDefinitions";
 
-import { CoreCube } from "../../../core/cube/cube";
-import { CubeCreateOptions } from '../../../core/cube/cube.definitions';
-import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
+import { CoreCube } from "../../../core/cube/coreCube";
+import { CubeCreateOptions } from '../../../core/cube/coreCube.definitions';
+import { CubeKey, CubeType } from "../../../core/cube/coreCube.definitions";
 import { mergeAsyncGenerators } from "../../../core/helpers/asyncGenerators";
 import { CubeStore } from "../../../core/cube/cubeStore";
 import { CubeRetrievalInterface } from "../../../core/cube/cubeRetrieval.definitions";
 import { logger } from "../../../core/logger";
 
-import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.definitions";
+import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cube.definitions";
 import { VerityField } from "../../../cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../cci/cube/relationship";
-import { Cube, cciFamily } from "../../../cci/cube/cciCube";
-import { isCci } from "../../../cci/cube/cciCubeUtil";
+import { Cube, cciFamily } from "../../../cci/cube/cube";
+import { isCci } from "../../../cci/cube/cubeUtil";
 import { RetrievalFormat } from "../../../cci/veritum/veritum.definitions";
 import { RecursiveRelResolvingPostInfo, RecursiveRelResolvingGetPostsGenerator } from "../../../cci/identity/identity.definitions";
 import { Identity } from "../../../cci/identity/identity";

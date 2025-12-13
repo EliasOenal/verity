@@ -1,6 +1,6 @@
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
-import { CubeType, CubeKey, NotificationKey } from '../../../src/core/cube/cube.definitions';
-import { CoreCube } from '../../../src/core/cube/cube';
+import { CubeType, CubeKey, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
@@ -13,8 +13,8 @@ import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRe
 
 import { PeerDB } from '../../../src/core/peering/peerDB';
 
-import { Cube } from '../../../src/cci/cube/cciCube';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { Cube } from '../../../src/cci/cube/cube';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { Recombine, Split } from '../../../src/cci/veritum/continuation';

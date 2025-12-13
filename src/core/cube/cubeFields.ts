@@ -3,11 +3,11 @@ import { NetConstants } from "../networking/networkDefinitions";
 import { BaseFields, FieldPosition } from "../fields/baseFields";
 import { FieldDefinition, FieldParser } from "../fields/fieldParser";
 
-import { coreCubeFamily, type CoreCube } from "./cube";
+import { coreCubeFamily, type CoreCube } from "./coreCube";
 import { CubeField } from "./cubeField";
 
 import { Buffer } from 'buffer';
-import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront, HasNotify, ToggleNotifyType, RawcontentFieldType } from "./cube.definitions";
+import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront, HasNotify, ToggleNotifyType, RawcontentFieldType } from "./coreCube.definitions";
 import { FrozenDefaultFields, FrozenNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields } from "./cubeField";
 
 export class CubeFields extends BaseFields {

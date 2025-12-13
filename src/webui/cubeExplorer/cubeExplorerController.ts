@@ -1,10 +1,10 @@
-import { coreCubeFamily, type CoreCube } from "../../core/cube/cube";
+import { coreCubeFamily, type CoreCube } from "../../core/cube/coreCube";
 import type { CubeField } from "../../core/cube/cubeField";
 import { logger } from "../../core/logger";
 import { getElementAboveByClassName } from "../helpers/dom";
 import { CubeExplorerView } from "./cubeExplorerView";
 import { ControllerContext, VerityController, VerityControllerOptions } from "../verityController";
-import type { CubeKey } from "../../core/cube/cube.definitions";
+import type { CubeKey } from "../../core/cube/coreCube.definitions";
 import { CubeStore } from "../../core/cube/cubeStore";
 
 export interface CubeFilter {

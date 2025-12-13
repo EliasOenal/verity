@@ -1,12 +1,12 @@
 import type { CubeInfo } from "../../cube/cubeInfo";
 import type { CubeStore } from "../../cube/cubeStore";
-import type { CoreCube } from "../../cube/cube";
+import type { CoreCube } from "../../cube/coreCube";
 import type { CubeRetrievalInterface } from "../../cube/cubeRetrieval.definitions";
 import type { CubeSubscription } from "./pendingRequest";
 import type { CubeRequestOptions, CubeSubscribeOptions, RequestScheduler } from "./requestScheduler";
 
 import { CancellableGenerator, eventsToGenerator } from "../../helpers/asyncGenerators";
-import { CubeFieldType, type CubeKey, type NotificationKey } from "../../cube/cube.definitions";
+import { CubeFieldType, type CubeKey, type NotificationKey } from "../../cube/coreCube.definitions";
 
 export interface CubeSubscribeRetrieverOptions extends CubeSubscribeOptions {
   /**
@@ -83,7 +83,7 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
    * To achieve this, we will network-subscribe to the key provided with a
    * single remote note.
    * This method only establishes a subscription for future updates. If you need
-   * to fetch the current version of the cube, call getCube() or getCubeInfo() 
+   * to fetch the current version of the cube, call getCube() or getCubeInfo()
    * separately before or after subscribing.
    * Note: In case the requested Cube is already in our local store, this call
    *   will *not* yield the currently stored version. Only updates will be

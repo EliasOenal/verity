@@ -1,5 +1,5 @@
 import { ArrayFromAsync, enumNums } from '../../../src/core/helpers/misc';
-import { CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/cube.definitions';
+import { CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
@@ -7,12 +7,12 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { IdentityOptions, GetPostsGenerator, PostInfo } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
 
-import { Cube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { RetrievalFormat } from '../../../src/cci/veritum/veritum.definitions';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
 
 import { evenLonger, testCubeStoreParams } from '../testcci.definitions';

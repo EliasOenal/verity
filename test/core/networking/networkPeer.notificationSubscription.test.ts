@@ -1,5 +1,5 @@
-import { CoreCube } from "../../../src/core/cube/cube";
-import { CubeKey, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
+import { CubeKey, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { keyVariants } from "../../../src/core/cube/keyUtil";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";

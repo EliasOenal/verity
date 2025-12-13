@@ -1,11 +1,11 @@
 import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
 import type { CubeSubscription } from '../../../../src/core/networking/cubeRetrieval/pendingRequest';
 
-import { cciFamily, Cube } from "../../../../src/cci/cube/cciCube";
-import { FieldType } from "../../../../src/cci/cube/cciCube.definitions";
+import { cciFamily, Cube } from "../../../../src/cci/cube/cube";
+import { FieldType } from "../../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../../src/cci/cube/verityField";
-import { CubeKey } from "../../../../src/core/cube/cube.definitions";
-import { CoreCube } from "../../../../src/core/cube/cube";
+import { CubeKey } from "../../../../src/core/cube/coreCube.definitions";
+import { CoreCube } from "../../../../src/core/cube/coreCube";
 import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
 import { keyVariants } from '../../../../src/core/cube/keyUtil';
 import { CubeInfo } from '../../../../src/core/cube/cubeInfo';

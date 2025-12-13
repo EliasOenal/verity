@@ -1,9 +1,9 @@
 /**
  * Verity Core - Low-level API
- * 
+ *
  * This module exports core functionality for advanced use cases.
  * Most applications should use the main `verity` module instead.
- * 
+ *
  * Import from this module as: `import {} from "verity/core"`
  */
 
@@ -13,7 +13,7 @@ export type { CoreNodeIf, CoreNodeOptions } from './coreNode.js';
 
 // Cube Storage
 export { CubeStore } from './cube/cubeStore.js';
-export { CoreCube, coreCubeFamily } from './cube/cube.js';
+export { CoreCube, coreCubeFamily } from './cube/coreCube.js';
 export { CubeInfo } from './cube/cubeInfo.js';
 export { CubeField } from './cube/cubeField.js';
 export { CubeFields } from './cube/cubeFields.js';
@@ -24,7 +24,7 @@ export * as CubeUtil from './cube/cubeUtil.js';
 export * from './cube/keyUtil.js';
 
 // Cube definitions and types
-export * from './cube/cube.definitions.js';
+// export * from './cube/cube.definitions.js';
 export type { CubeRetrievalInterface, CubeIteratorOptions } from './cube/cubeRetrieval.definitions.js';
 
 // Networking
@@ -50,10 +50,6 @@ export { Settings } from './settings.js';
 
 // Logger
 export { logger } from './logger.js';
-
-// Helper utilities
-export { DeferredPromise, CancellableTask } from './helpers/promises.js';
-export { ShortenableTimeout } from './helpers/shortenableTimeout.js';
 
 // Testing utilities (for test code)
 export { DummyNetworkManager } from './networking/testingDummies/dummyNetworkManager.js';

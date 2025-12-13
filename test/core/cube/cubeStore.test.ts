@@ -1,19 +1,19 @@
 import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-import { CubeFieldLength, CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/cube.definitions';
+import { CubeFieldLength, CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
 import { CubeIteratorOptions } from '../../../src/core/cube/cubeRetrieval.definitions';
-import { CoreCube, coreCubeFamily } from '../../../src/core/cube/cube';
+import { CoreCube, coreCubeFamily } from '../../../src/core/cube/coreCube';
 import { CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
 import { Sublevels } from '../../../src/core/cube/levelBackend';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
 import { VerityField } from '../../../src/cci/cube/verityField';
-import { Cube, cciFamily } from '../../../src/cci/cube/cciCube';
+import { Cube, cciFamily } from '../../../src/cci/cube/cube';
 import { VerityFields } from '../../../src/cci/cube/verityFields';
 
 import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
-import { MediaTypes, FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { MediaTypes, FieldType } from '../../../src/cci/cube/cube.definitions';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
 
 import sodium from 'libsodium-wrappers-sumo'

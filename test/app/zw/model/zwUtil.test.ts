@@ -1,11 +1,11 @@
-import type { CubeKey } from "../../../../src/core/cube/cube.definitions";
+import type { CubeKey } from "../../../../src/core/cube/coreCube.definitions";
 
-import { CoreCube } from "../../../../src/core/cube/cube";
+import { CoreCube } from "../../../../src/core/cube/coreCube";
 import { VerityField } from "../../../../src/cci/cube/verityField";
 import { NetConstants } from "../../../../src/core/networking/networkDefinitions";
 
-import { FieldType } from "../../../../src/cci/cube/cciCube.definitions";
-import { Cube } from "../../../../src/cci/cube/cciCube";
+import { FieldType } from "../../../../src/cci/cube/cube.definitions";
+import { Cube } from "../../../../src/cci/cube/cube";
 import { RelationshipType } from "../../../../src/cci/cube/relationship";
 
 import { makePost, assertZwCube } from "../../../../src/app/zw/model/zwUtil";

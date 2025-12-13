@@ -1,8 +1,8 @@
-import { Cube } from "../../../src/cci/cube/cciCube";
-import { FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { Cube } from "../../../src/cci/cube/cube";
+import { FieldLength, FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/verityFields";
-import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";

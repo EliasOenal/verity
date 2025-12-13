@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getNotificationDateKey, getNotificationDifficultyKey } from '../../../src/core/cube/cubeStoreUtil';
-import { CoreCube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 import { CubeField } from '../../../src/core/cube/cubeField';
-import { CubeType, NotificationKey, CubeKey, CubeFieldType } from '../../../src/core/cube/cube.definitions';
+import { CubeType, NotificationKey, CubeKey, CubeFieldType } from '../../../src/core/cube/coreCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 describe('getNotificationDateKey()', () => {
