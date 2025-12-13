@@ -9,7 +9,7 @@ import { Sublevels } from '../../../src/core/cube/levelBackend';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
 import { VerityField } from '../../../src/cci/cube/verityField';
-import { Cube, cubeFamily } from '../../../src/cci/cube/cciCube';
+import { Cube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { VerityFields } from '../../../src/cci/cube/verityFields';
 
 import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
@@ -1103,7 +1103,7 @@ describe('cubeStore', () => {
 
       describe(`tests involving CCI layer with ${testOptions.inMemoryLevelDB? 'in-memory DB' : 'persistent DB'} and ${testOptions.cubeCacheEnabled? 'CubeCache enabled' : 'no Cube cache'}`, () => {
         const cubeStoreOptions: CubeStoreOptions = {
-          family: [cubeFamily, coreCubeFamily],
+          family: [cciFamily, coreCubeFamily],
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
           dbName: 'cubes.test',

@@ -4,7 +4,7 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { FieldType } from "../cube/cciCube.definitions";
 import { VerityField } from "../cube/verityField";
-import { VerityFields, frozenFieldDefinition } from "../cube/verityFields";
+import { VerityFields, cciFrozenFieldDefinition } from "../cube/verityFields";
 import { ContinuationDefaultExclusions } from "./veritum.definitions";
 import { CciEncryptionParams, CryptStateOutput, EncryptionRecipients } from "./encryption.definitions";
 
@@ -169,7 +169,7 @@ export function EncryptPrePlanned(
 
 export function EncryptionOverheadBytes(
   options: CciEncryptionParams = {},
-  fieldDefinition: FieldDefinition = frozenFieldDefinition,
+  fieldDefinition: FieldDefinition = cciFrozenFieldDefinition,
 ): number {
   // sanity-check: all headers must have been planned
   if (options.pubkeyHeader === undefined ||

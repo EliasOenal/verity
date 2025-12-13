@@ -11,7 +11,7 @@ import { SupportedTransports } from '../core/networking/networkDefinitions';
 import { defaultInitialPeers } from '../core/coreNode';
 import { coreCubeFamily } from '../core/cube/cube';
 
-import { cubeFamily } from '../cci/cube/cciCube';
+import { cciFamily } from '../cci/cube/cciCube';
 import { VerityNode, VerityNodeOptions } from '../cci/verityNode';
 import { Cockpit } from '../cci/cockpit';
 
@@ -87,7 +87,7 @@ export class VerityUI implements ControllerContext {
     options.inMemory ??= false;
     options.lightNode ??= true;
     options.useRelaying ??= true;
-    options.family ??= [cubeFamily, coreCubeFamily];
+    options.family ??= [cciFamily, coreCubeFamily];
 
     // Torrent tracker usage must be enforced off as it's not supported
     // in the browser environment.

@@ -4,7 +4,7 @@ import { VeritumRetriever } from "./veritum/veritumRetriever";
 import { CubeStore } from "../core/cube/cubeStore";
 import { DummyNetworkManager } from "../core/networking/testingDummies/dummyNetworkManager";
 import { PeerDB } from "../core/peering/peerDB";
-import { cubeFamily } from "./cube/cciCube";
+import { cciFamily } from "./cube/cciCube";
 
 export interface VerityNodeIf extends CoreNodeIf {
   veritumRetriever: VeritumRetriever<any>;
@@ -51,7 +51,7 @@ export function dummyVerityNode(options: VerityNodeOptions = {}): VerityNode {
   options.initialPeers ??= [];
   options.peerExchange ??= false;
   options.requiredDifficulty ??= 0;
-  options.family ??= cubeFamily;
+  options.family ??= cciFamily;
 
   const cubeStore = options.cubeStore ??= new CubeStore(options);
   const peerDB = options.peerDB ??= new PeerDB();

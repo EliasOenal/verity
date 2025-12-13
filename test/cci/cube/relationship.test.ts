@@ -2,14 +2,14 @@ import { CubeKey, CubeType, WrongFieldType } from "../../../src/core/cube/cube.d
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { fieldParsers, VerityFields, frozenFieldDefinition } from "../../../src/cci/cube/verityFields";
+import { cciFieldParsers, VerityFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('Relationship', () => {
   it('create a CCI fields object from its predefined field definition', () => {
-    const parserTable = fieldParsers;
+    const parserTable = cciFieldParsers;
     const cciFrozenParser = parserTable[CubeType.FROZEN];
     const fieldDef = cciFrozenParser.fieldDef;
     const fieldsClass = fieldDef.fieldsObjectClass;
@@ -43,7 +43,7 @@ describe('Relationship', () => {
       VerityField.Date(),
       VerityField.Nonce(),
     ],
-    frozenFieldDefinition);
+    cciFrozenFieldDefinition);
 
     expect(fields instanceof VerityFields).toBeTruthy();
     expect(fields.getRelationships().length).toEqual(6);

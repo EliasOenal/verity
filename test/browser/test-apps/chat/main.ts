@@ -20,7 +20,7 @@ import { RetrievalFormat } from '../../../../src/cci/veritum/veritum.definitions
 import { CoreCube } from '../../../../src/core/cube/cube';
 import { CubeRetriever } from '../../../../src/core/networking/cubeRetrieval/cubeRetriever';
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
-import { cubeFamily, Cube } from '../../../../src/cci/cube/cciCube';
+import { cciFamily, Cube } from '../../../../src/cci/cube/cciCube';
 import { coreCubeFamily } from '../../../../src/core/cube/cube';
 
 interface ChatMessage {
@@ -74,7 +74,7 @@ async function initializeChatTest(): Promise<void> {
     // Create a real VerityNode with CCI cube family for proper chat cube handling
     verityNode = new VerityNode({
       ...testCoreOptions,  // Use testCoreOptions as base for performance
-      family: [cubeFamily, coreCubeFamily], // Support both CCI and core cube families like the demo app
+      family: [cciFamily, coreCubeFamily], // Support both CCI and core cube families like the demo app
       lightNode: true,   // Light node - only stores own cubes, doesn't download everything
       inMemory: true,    // Fast in-memory storage for testing
       requiredDifficulty: 0,  // No proof-of-work for testing

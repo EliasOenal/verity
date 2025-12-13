@@ -6,7 +6,7 @@ import { BaseFields } from "../../../src/core/fields/baseFields";
 import { BinaryDataError, CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields } from "../../../src/core/cube/cubeFields";
-import { VerityFields, frozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/verityFields";
+import { VerityFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/verityFields";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
 
@@ -282,7 +282,7 @@ describe('fieldParser', () => {
   describe('CCI fields', () => {
     it('should correctly compile and decompile CCI fields', () => {
       const fieldParser: FieldParser = cciFrozenParser;
-      const fields = new VerityFields(undefined, frozenFieldDefinition);
+      const fields = new VerityFields(undefined, cciFrozenFieldDefinition);
 
       // define a few fields
       fields.appendField(CubeField.Type(CubeType.FROZEN));

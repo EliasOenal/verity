@@ -20,7 +20,7 @@ import { logger } from "../../core/logger";
 export class VerityFields extends CubeFields {
   static Frozen(
     data: CubeFields | CubeField[] | CubeField = [],
-    fieldDefinition: FieldDefinition = frozenFieldDefinition
+    fieldDefinition: FieldDefinition = cciFrozenFieldDefinition
   ): VerityFields {
     return super.Frozen(data, fieldDefinition) as VerityFields;
   }
@@ -28,7 +28,7 @@ export class VerityFields extends CubeFields {
   static Muc(
     publicKey: Buffer | Uint8Array,
     data: CubeFields | CubeField[] | CubeField = [],
-    fieldDefinition: FieldDefinition = mucFieldDefinition
+    fieldDefinition: FieldDefinition = cciMucFieldDefinition
   ): VerityFields {
     return super.Muc(publicKey, data, fieldDefinition) as VerityFields;
   }
@@ -90,9 +90,9 @@ export class VerityFields extends CubeFields {
 
 // NOTE: Never move this to another file. This only works if it is defined
 // strictly after cciField and cciFields.
-// For the same reason, cubeFamily is defined in the same file as Cube.
+// For the same reason, cciFamily is defined in the same file as Cube.
 // Javascript is crazy.
-export const frozenFieldDefinition: FieldDefinition = {
+export const cciFrozenFieldDefinition: FieldDefinition = {
   fieldNames: FieldType,
   fieldLengths: FieldLength,
   positionalFront: FrozenPositionalFront,
@@ -114,7 +114,7 @@ export const cciFrozenNotifyFieldDefinition: FieldDefinition = {
   stopField: FieldType.CCI_END,
   remainderField: FieldType.REMAINDER,
 };
-export const picFieldDefinition: FieldDefinition = {
+export const cciPicFieldDefinition: FieldDefinition = {
   fieldNames: FieldType,
   fieldLengths: FieldLength,
   positionalFront: PicPositionalFront,
@@ -136,7 +136,7 @@ export const cciPicNotifyFieldDefinition: FieldDefinition = {
   stopField: FieldType.CCI_END,
   remainderField: FieldType.REMAINDER,
 };
-export const mucFieldDefinition: FieldDefinition = {
+export const cciMucFieldDefinition: FieldDefinition = {
   fieldNames: FieldType,
   fieldLengths: FieldLength,
   positionalFront: MucPositionalFront,
@@ -158,7 +158,7 @@ export const cciMucNotifyFieldDefinition: FieldDefinition = {
   stopField: FieldType.CCI_END,
   remainderField: FieldType.REMAINDER,
 };
-export const pmucFieldDefinition: FieldDefinition = {
+export const cciPmucFieldDefinition: FieldDefinition = {
   fieldNames: FieldType,
   fieldLengths: FieldLength,
   positionalFront: PmucPositionalFront,
@@ -180,22 +180,22 @@ export const cciPmucNotifyFieldDefinition: FieldDefinition = {
   stopField: FieldType.CCI_END,
   remainderField: FieldType.REMAINDER,
 };
-export const cciFrozenParser: FieldParser = new FieldParser(frozenFieldDefinition);
+export const cciFrozenParser: FieldParser = new FieldParser(cciFrozenFieldDefinition);
 export const cciFrozenNotifyParser: FieldParser = new FieldParser(cciFrozenNotifyFieldDefinition);
-export const cciPicParser: FieldParser = new FieldParser(picFieldDefinition);
+export const cciPicParser: FieldParser = new FieldParser(cciPicFieldDefinition);
 export const cciPicNotifyParser: FieldParser = new FieldParser(cciPicNotifyFieldDefinition);
-export const cciMucParser: FieldParser = new FieldParser(mucFieldDefinition);
+export const cciMucParser: FieldParser = new FieldParser(cciMucFieldDefinition);
 export const cciMucNotifyParser: FieldParser = new FieldParser(cciMucNotifyFieldDefinition);
-export const pmucParser: FieldParser = new FieldParser(pmucFieldDefinition);
+export const cciPmucParser: FieldParser = new FieldParser(cciPmucFieldDefinition);
 export const cciPmucNotifyParser: FieldParser = new FieldParser(cciPmucNotifyFieldDefinition);
 
-export const fieldParsers: FieldParserTable = {
+export const cciFieldParsers: FieldParserTable = {
   [CubeType.FROZEN]: cciFrozenParser,
   [CubeType.FROZEN_NOTIFY]: cciFrozenNotifyParser,
   [CubeType.PIC]: cciPicParser,
   [CubeType.PIC_NOTIFY]: cciPicNotifyParser,
   [CubeType.MUC]: cciMucParser,
   [CubeType.MUC_NOTIFY]: cciMucNotifyParser,
-  [CubeType.PMUC]: pmucParser,
+  [CubeType.PMUC]: cciPmucParser,
   [CubeType.PMUC_NOTIFY]: cciPmucNotifyParser,
 }

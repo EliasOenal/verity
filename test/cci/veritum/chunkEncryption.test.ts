@@ -1,6 +1,6 @@
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-import { VerityFields, frozenFieldDefinition } from '../../../src/cci/cube/verityFields';
+import { VerityFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/verityFields';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { FieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
 import { CryptStateOutput } from '../../../src/cci/veritum/encryption.definitions';
@@ -57,7 +57,7 @@ describe('CCI chunk encryption', () => {
         // Both symmetric key and nonce are already known by the recipient.
         const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
         const fields: VerityFields = VerityFields.DefaultPositionals(
-          frozenFieldDefinition,
+          cciFrozenFieldDefinition,
           VerityField.Payload(plaintext),
         ) as VerityFields;
 
@@ -98,7 +98,7 @@ describe('CCI chunk encryption', () => {
         // Both parties are assumed to already have a shared key.
         const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
         const fields: VerityFields = VerityFields.DefaultPositionals(
-          frozenFieldDefinition,
+          cciFrozenFieldDefinition,
           VerityField.Payload(plaintext),
         ) as VerityFields;
 
@@ -147,7 +147,7 @@ describe('CCI chunk encryption', () => {
         // the recipient can decrypt the payload.
         const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
         const fields: VerityFields = VerityFields.DefaultPositionals(
-          frozenFieldDefinition,
+          cciFrozenFieldDefinition,
           VerityField.Payload(plaintext),
         ) as VerityFields;
 
@@ -204,7 +204,7 @@ describe('CCI chunk encryption', () => {
         // the recipient can decrypt the payload.
         const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
         const fields: VerityFields = VerityFields.DefaultPositionals(
-          frozenFieldDefinition,
+          cciFrozenFieldDefinition,
           VerityField.Payload(plaintext),
         ) as VerityFields;
 
@@ -318,7 +318,7 @@ describe('CCI chunk encryption', () => {
         let predefinedNonce: Buffer;
         beforeAll(() => {
           const fields: VerityFields = VerityFields.DefaultPositionals(
-            frozenFieldDefinition,
+            cciFrozenFieldDefinition,
             VerityField.Payload(secretMessage),
           ) as VerityFields;
 
@@ -341,7 +341,7 @@ describe('CCI chunk encryption', () => {
         let preSharedKey: Buffer;
         beforeAll(() => {
           const fields: VerityFields = VerityFields.DefaultPositionals(
-            frozenFieldDefinition,
+            cciFrozenFieldDefinition,
             VerityField.Payload(secretMessage),
           ) as VerityFields;
 
@@ -361,7 +361,7 @@ describe('CCI chunk encryption', () => {
       describe('Start-of-Veritum for single recipient', () => {
         beforeAll(() => {
           const fields: VerityFields = VerityFields.DefaultPositionals(
-            frozenFieldDefinition,
+            cciFrozenFieldDefinition,
             VerityField.Payload(secretMessage),
           ) as VerityFields;
 
@@ -404,7 +404,7 @@ describe('CCI chunk encryption', () => {
           }
 
           const fields: VerityFields = VerityFields.DefaultPositionals(
-            frozenFieldDefinition,
+            cciFrozenFieldDefinition,
             VerityField.Payload(secretMessage),
           ) as VerityFields;
 
@@ -441,7 +441,7 @@ describe('CCI chunk encryption', () => {
             VerityField.Payload(plaintext),
             VerityField.Payload(plaintext2),
           ],
-          frozenFieldDefinition
+          cciFrozenFieldDefinition
         );
 
         // Encrypt the fields
@@ -478,7 +478,7 @@ describe('CCI chunk encryption', () => {
       it('leaves core fields intact and unencrypted', () => {
         const plaintext = "Campi fundamentales non possunt cryptari";
         const fields: VerityFields = VerityFields.DefaultPositionals(
-          frozenFieldDefinition,
+          cciFrozenFieldDefinition,
           VerityField.Payload(plaintext),
         ) as VerityFields;
 
@@ -523,7 +523,7 @@ describe('CCI chunk encryption', () => {
       // Make a Start-of-Veritum Cube to a single recipient
       const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
       const fields: VerityFields = VerityFields.DefaultPositionals(
-        frozenFieldDefinition,
+        cciFrozenFieldDefinition,
         VerityField.Payload(plaintext),
       ) as VerityFields;
 
@@ -555,7 +555,7 @@ describe('CCI chunk encryption', () => {
       // This can be used to perform pure key distribution without sending
       // an actual message just yet
       const encrypted: VerityFields = Encrypt(
-        new VerityFields([], frozenFieldDefinition), {
+        new VerityFields([], cciFrozenFieldDefinition), {
         senderPrivateKey:sender.privateKey,
         recipients: recipient.publicKey,
         senderPubkey: sender.publicKey,
@@ -571,7 +571,7 @@ describe('CCI chunk encryption', () => {
 
     it('will throw on missing sender pubkey', () => {
       expect(() => {
-        Encrypt(new VerityFields([], frozenFieldDefinition), {
+        Encrypt(new VerityFields([], cciFrozenFieldDefinition), {
           senderPrivateKey: sender.privateKey,
           recipients: recipient.publicKey,
         });
@@ -580,7 +580,7 @@ describe('CCI chunk encryption', () => {
 
     it('will throw on missing sender privkey', () => {
       expect(() => {
-        Encrypt(new VerityFields([], frozenFieldDefinition), {
+        Encrypt(new VerityFields([], cciFrozenFieldDefinition), {
           senderPubkey: sender.publicKey,
           recipients: recipient.publicKey,
         });

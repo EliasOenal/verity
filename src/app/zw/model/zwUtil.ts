@@ -16,9 +16,9 @@ import { logger } from "../../../core/logger";
 
 import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.definitions";
 import { VerityField } from "../../../cci/cube/verityField";
-import { VerityFields, frozenFieldDefinition } from "../../../cci/cube/verityFields";
+import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../cci/cube/relationship";
-import { Cube, cubeFamily } from "../../../cci/cube/cciCube";
+import { Cube, cciFamily } from "../../../cci/cube/cciCube";
 import { isCci } from "../../../cci/cube/cciCubeUtil";
 import { RetrievalFormat } from "../../../cci/veritum/veritum.definitions";
 import { RecursiveRelResolvingPostInfo, RecursiveRelResolvingGetPostsGenerator } from "../../../cci/identity/identity.definitions";
@@ -54,7 +54,7 @@ export async function makePost(
   options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
   // prepare Cube
   const cube: Cube = Cube.Frozen({
-    family: cubeFamily, requiredDifficulty: options.requiredDifficulty, fields: [
+    family: cciFamily, requiredDifficulty: options.requiredDifficulty, fields: [
       VerityField.Application(("ZW")),
       VerityField.MediaType(MediaTypes.TEXT),
       VerityField.Payload(text),
@@ -97,7 +97,7 @@ export const maxPostSize: number =  // calculate maximum posts size by creating 
       new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE) as CubeKey)),
     VerityField.RelatesTo(  // make that two for good measure
       new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE) as CubeKey)),
-  ], frozenFieldDefinition).bytesRemaining();
+  ], cciFrozenFieldDefinition).bytesRemaining();
 
 export function assertZwCube(cube: CoreCube): boolean {
   if (!(isCci(cube))) {

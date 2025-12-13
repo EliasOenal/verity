@@ -2,7 +2,7 @@ import { ControllerContext, VerityController } from "../verityController";
 import { ChatView } from "./chatView";
 import { ChatApplication } from "../../app/chatApplication";
 import { logger } from "../../core/logger";
-import { Cube, cubeFamily } from "../../cci/cube/cciCube";
+import { Cube, cciFamily } from "../../cci/cube/cciCube";
 import { Buffer } from "buffer";
 import { NotificationKey } from "../../core/cube/cube.definitions";
 import { mergeAsyncGenerators, MergedAsyncGenerator } from "../../core/helpers/asyncGenerators";

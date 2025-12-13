@@ -1,6 +1,6 @@
 import type { IdentityOptions } from "../../src/cci/identity/identity.definitions";
 
-import { cubeFamily } from "../../src/cci/cube/cciCube";
+import { cciFamily } from "../../src/cci/cube/cciCube";
 import { CubeStoreOptions } from "../../src/core/cube/cubeStore";
 import { testCoreOptions } from "../core/testcore.definition";
 import { VerityNodeOptions } from "../../src/cci/verityNode";
@@ -11,7 +11,7 @@ export const testCubeStoreParams: CubeStoreOptions = {
   enableCubeCache: false,
   enableCubeRetentionPolicy: false,
   requiredDifficulty: 0,
-  family: cubeFamily,
+  family: cciFamily,
 };
 
 // Identity and cryptography related
@@ -32,7 +32,7 @@ export const testCciOptions: VerityNodeOptions | IdentityOptions = {
   ...testCoreOptions,
   ...testCubeStoreParams,
   ...idTestOptions,
-  family: [cubeFamily, coreCubeFamily],
+  family: [cciFamily, coreCubeFamily],
   identityPersistence: false,
 };
 

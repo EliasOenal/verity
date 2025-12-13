@@ -1,5 +1,5 @@
 import { Settings } from "../../../src/core/settings";
-import { Cube, cubeFamily } from "../../../src/cci/cube/cciCube";
+import { Cube, cciFamily } from "../../../src/cci/cube/cciCube";
 import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Veritum } from "../../../src/cci/veritum/veritum";
@@ -93,7 +93,7 @@ describe('Veritum (basic tests)', () => {
         const veritum = new Veritum();
 
         expect(veritum.cubeType).toBe(DEFAULT_CUBE_TYPE);
-        expect(veritum.family).toBe(cubeFamily);
+        expect(veritum.family).toBe(cciFamily);
         expect(veritum.fieldCount).toBe(0);
         expect(veritum.publicKey).toBeUndefined();
         expect(veritum.privateKey).toBeUndefined();
@@ -104,7 +104,7 @@ describe('Veritum (basic tests)', () => {
         const veritum = new Veritum({ cubeType: CubeType.PMUC });
 
         expect(veritum.cubeType).toBe(CubeType.PMUC);
-        expect(veritum.family).toBe(cubeFamily);
+        expect(veritum.family).toBe(cciFamily);
       });
 
       it('creates a Veritum with initial fields', () => {
@@ -177,14 +177,14 @@ describe('Veritum (basic tests)', () => {
 
       it('uses CCI family by default', () => {
         const veritum = new Veritum({ cubeType: CubeType.MUC });
-        expect(veritum.family).toBe(cubeFamily);
+        expect(veritum.family).toBe(cciFamily);
       });
     });
 
     describe('fieldParser getter', () => {
       it('returns the correct field parser for CCI PMUC Veritae', () => {
         const veritum = new Veritum({ cubeType: CubeType.PMUC });
-        expect(veritum.fieldParser).toBe(cubeFamily.parsers[CubeType.PMUC]);
+        expect(veritum.fieldParser).toBe(cciFamily.parsers[CubeType.PMUC]);
       });
     });
 
