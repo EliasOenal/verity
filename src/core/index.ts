@@ -24,7 +24,7 @@ export * as CubeUtil from './cube/cubeUtil.js';
 export * from './cube/keyUtil.js';
 
 // Cube definitions and types
-// export * from './cube/cube.definitions.js';
+export { CubeType, CubeKey, NotificationKey } from './cube/coreCube.definitions.js';
 export type { CubeRetrievalInterface, CubeIteratorOptions } from './cube/cubeRetrieval.definitions.js';
 
 // Networking
@@ -46,7 +46,7 @@ export { PeerDB } from './peering/peerDB.js';
 export { AddressAbstraction, WebSocketAddress } from './peering/addressing.js';
 
 // Settings
-export { Settings } from './settings.js';
+export { Settings, VerityError, ApiMisuseError } from './settings.js';
 
 // Logger
 export { logger } from './logger.js';

@@ -12,18 +12,18 @@ export { Cockpit } from './cci/cockpit.js';
 export type { CockpitOptions, PublishVeritumOptions } from './cci/cockpit.js';
 
 export { Veritum } from './cci/veritum/veritum.js';
-export type { VeritumCreateOptions, VeritumCompileOptions, VeritumFromChunksOptions } from './cci/veritum/veritum.definitions.js';
+export { VeritumCreateOptions, VeritumCompileOptions, VeritumFromChunksOptions } from './cci/veritum/veritum.definitions.js';
 
 export { VerityNode, dummyVerityNode } from './cci/verityNode.js';
 export type { VerityNodeIf, VerityNodeOptions } from './cci/verityNode.js';
 
 // Cube API
 export { Cube, cciFamily } from './cci/cube/cube.js';
-export type { CubeCreateOptions, CubeType, CubeKey, NotificationKey } from './core/cube/coreCube.definitions.js';
+export { CubeCreateOptions, CubeType, CubeKey, NotificationKey } from './core/cube/coreCube.definitions.js';
 
 export { VerityField } from './cci/cube/verityField.js';
 export { VerityFields } from './cci/cube/verityFields.js';
-export { FieldType, MediaTypes } from './cci/cube/cube.definitions.js';
+export { FieldType, MediaTypes, FieldLength } from './cci/cube/cube.definitions.js';
 
 export { Relationship, RelationshipType } from './cci/cube/relationship.js';
 
