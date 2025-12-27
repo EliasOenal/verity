@@ -1,22 +1,18 @@
 {
-  "name": "verity",
-  "version": "0.1.0",
-  "description": "Write something really important sounding here",
+  "name": "@veritycloud/verity",
+  "version": "0.1.10",
+  "description": "A decentralised, serverless and censorship-resistant Cloud application platform",
   "type": "module",
+  "private": true,
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./verity.d.ts",
+      "default": "./verity.js"
     },
-    "./core": {
-      "types": "./dist/core/index.d.ts",
-      "default": "./dist/core/index.js"
+    "./*": {
+      "types": "./*.d.ts",
+      "default": "./*.js"
     },
-    "./webui": {
-      "types": "./dist/webui/index.d.ts",
-      "default": "./dist/webui/index.js"
-    },
-    "./src/*": "./src/*",
     "./webpack.veritycommon.mjs": "./webpack.veritycommon.mjs"
   },
   "scripts": {
@@ -28,17 +24,19 @@
     "test:server": "webpack serve --config webpack.test.mjs",
     "vitest": "./node_modules/.bin/vitest run",
     "webpack": "webpack",
-    "build": "npm run typecheck && tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json",
+    "postbuild": "cp README.md LICENSE package.json webpack.base.mjs webpack.veritycommon.mjs dist/; cp -r img dist/; cp -r src/webui/static dist/webui/; jq 'del(.private, .scripts, .devDependencies)' package.json > dist/package.json",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
     "server": "webpack serve",
-  "lint": "node_modules/.bin/eslint",
-  "chat:build": "webpack --config apps/chat/webpack.config.mjs",
-  "chat:serve": "webpack serve --config apps/chat/webpack.config.mjs",
-  "chat:build:prod": "webpack --config apps/chat/webpack.prod.config.mjs"
+    "prepublishOnly": "echo 'Please run npm run build, then run npm publish from within dist' && exit 1",
+    "lint": "node_modules/.bin/eslint",
+    "chat:build": "webpack --config apps/chat/webpack.config.mjs",
+    "chat:serve": "webpack serve --config apps/chat/webpack.config.mjs",
+    "chat:build:prod": "webpack --config apps/chat/webpack.prod.config.mjs"
   },
   "author": "Elias Oenal, Victor Hahn",
-  "license": "BSD-3-Clause-Clear",
+  "license": "GPL-2.0-only",
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.56.1",
@@ -75,7 +73,7 @@
     "@libp2p/webrtc": "^5.2.24",
     "@libp2p/websockets": "^9.2.19",
     "@multiavatar/multiavatar": "^1.0.7",
-    "@scure/bip39": "^2.0.0",
+    "@scure/bip39": "1.6.0",
     "@types/libsodium-wrappers": "^0.7.14",
     "@types/node": "^24.10.1",
     "abstract-level": "^3.0.1",
