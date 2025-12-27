@@ -1,6 +1,6 @@
 /**
  * Light Node Test Application
- * 
+ *
  * This is a minimal web application for testing light Verity node functionality.
  * It uses the real Verity library with testCoreOptions for fast testing.
  */
@@ -10,7 +10,7 @@ import sodium from 'libsodium-wrappers-sumo';
 import { VerityNode } from '../../../../src/cci/verityNode';
 import { Cockpit } from '../../../../src/cci/cockpit';
 import { VerityField } from '../../../../src/cci/cube/verityField';
-import { cciCube } from '../../../../src/cci/cube/cciCube';
+import { Cube } from '../../../../src/cci/cube/cube';
 import { testCoreOptions } from '../../../core/testcore.definition';
 import { testCciOptions } from '../../../cci/testcci.definitions';
 import { Peer } from '../../../../src/core/peering/peer';
@@ -54,7 +54,7 @@ async function initializeLightNodeTest(): Promise<void> {
       cubeStore: verityNode.cubeStore,
       cockpit: cockpit,  // Add cockpit for cube creation
       VerityField: VerityField,  // Export VerityField for Playwright tests
-  cciCube: cciCube, // Expose cciCube for direct CCI cube creation tests (parity with full-node test app)
+  cciCube: Cube, // Expose Cube class for direct CCI cube creation tests (parity with full-node test app)
       Peer: Peer,  // Export Peer class for connections
       WebSocketAddress: WebSocketAddress,  // Export WebSocketAddress class for connections
       testUtils: {
@@ -67,7 +67,7 @@ async function initializeLightNodeTest(): Promise<void> {
             nodeId: `light-node-${Date.now()}-${Math.random().toString(36).substring(2)}`
           };
         },
-        
+
         createMultipleTestItems: async (count: number) => {
           const results = [];
           for (let i = 0; i < count; i++) {
@@ -78,7 +78,7 @@ async function initializeLightNodeTest(): Promise<void> {
           }
           return results;
         },
-        
+
         getNodeInfo: () => {
           return {
             type: 'light-node',
@@ -94,11 +94,11 @@ async function initializeLightNodeTest(): Promise<void> {
     // Update UI
     const statusEl = document.getElementById('status');
     const nodeInfoEl = document.getElementById('nodeInfo');
-    
+
     if (statusEl) {
       statusEl.textContent = 'Light node test ready!';
     }
-    
+
     if (nodeInfoEl) {
       nodeInfoEl.innerHTML = `
         <h3>Light Node Test Information</h3>
@@ -112,10 +112,10 @@ async function initializeLightNodeTest(): Promise<void> {
     }
 
     console.log('Light node test application ready');
-    
+
   } catch (error) {
     console.error('Failed to initialize VerityNode:', error);
-    
+
     const statusEl = document.getElementById('status');
     if (statusEl) {
       statusEl.textContent = `Error: ${(error as Error).message}`;
@@ -132,11 +132,11 @@ if (isBrowser) {
       if (statusEl) {
         statusEl.textContent = 'Initializing light node test...';
       }
-      
+
       await initializeLightNodeTest();
     } catch (error) {
       console.error('Failed to initialize light node test:', error);
-      
+
       const statusEl = document.getElementById('status');
       if (statusEl) {
         statusEl.textContent = `Error: ${(error as Error).message}`;

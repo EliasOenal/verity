@@ -1,4 +1,4 @@
-import { CubeKey } from '../../../src/core/cube/cube.definitions';
+import { CubeKey } from '../../../src/core/cube/coreCube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';

@@ -1,9 +1,9 @@
-import { CubeKey } from '../../../src/core/cube/cube.definitions';
+import { CubeKey } from '../../../src/core/cube/coreCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { cciCube } from '../../../src/cci/cube/cciCube';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { Cube } from '../../../src/cci/cube/cube';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
@@ -43,11 +43,11 @@ describe('Identity: remote updates', () => {
     // make a post and set some user attributes
     notebookId.name = "Dominus plurium apparatorum";
     notebookId.avatar = new Avatar("1234567890", AvatarScheme.MULTIAVATAR);
-    const postWrittenOnNotebook: cciCube = await makePost(
+    const postWrittenOnNotebook: Cube = await makePost(
       "Hoc est scriptum in computatore domi meae",
       { id: notebookId, requiredDifficulty:reducedDifficulty });
     await cubeStore.addCube(postWrittenOnNotebook);
-    const pmuc1: cciCube = await notebookId.store();
+    const pmuc1: Cube = await notebookId.store();
     // expect PMUC update count to have been auto-incremented
     expect(pmuc1.getFirstField(FieldType.PMUC_UPDATE_COUNT).value
       .readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE))
@@ -77,13 +77,13 @@ describe('Identity: remote updates', () => {
     expect(phoneId.hasPost(postWrittenOnNotebook.getKeyIfAvailable())).toBeTruthy();
 
     // perform changes on phone
-    const postWrittenOnPhone: cciCube = await makePost(
+    const postWrittenOnPhone: Cube = await makePost(
       "Hoc scriptum est in telefono mobili meo",
       { id: phoneId, requiredDifficulty: reducedDifficulty });
     await cubeStore.addCube(postWrittenOnPhone);
     phoneId.name = "Dominus plurium apparatorum qui nunc iter agit";
     phoneId.avatar = new Avatar("cafebabe42", AvatarScheme.MULTIAVATAR);
-    const pmuc2: cciCube = await phoneId.store();
+    const pmuc2: Cube = await phoneId.store();
     // expect PMUC update count to have been auto-incremented
     expect(pmuc2.getFirstField(FieldType.PMUC_UPDATE_COUNT).value
       .readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE))
@@ -123,7 +123,7 @@ describe('Identity: remote updates', () => {
     expect(leftId.getPostCount()).toEqual(2);
     expect(leftId.hasPost(commonPostKey)).toBeTruthy();
     expect(leftId.hasPost(leftOnlyKey)).toBeTruthy();
-    const leftMuc: cciCube = await leftId.marshall();
+    const leftMuc: Cube = await leftId.marshall();
     await cubeStore.addCube(leftMuc);
 
     // create conflicting Identity (this might e.g. happen on another device)
@@ -137,7 +137,7 @@ describe('Identity: remote updates', () => {
     expect(rightId.hasPost(commonPostKey)).toBeTruthy();
     expect(rightId.hasPost(leftOnlyKey)).toBeFalsy();
     expect(rightId.hasPost(rightOnlyKey)).toBeTruthy();
-    const rightMuc: cciCube = await rightId.marshall();
+    const rightMuc: Cube = await rightId.marshall();
 
     // merge right to left by adding right's MUC to left's CubeStore
     await cubeStore.addCube(rightMuc);
@@ -162,7 +162,7 @@ describe('Identity: remote updates', () => {
     expect(leftId.getPostCount()).toEqual(2);
     expect(leftId.hasPost(commonPostKey)).toBeTruthy();
     expect(leftId.hasPost(leftOnlyKey)).toBeTruthy();
-    const leftMuc: cciCube = await leftId.marshall();
+    const leftMuc: Cube = await leftId.marshall();
     await cubeStore.addCube(leftMuc);
 
     // create conflicting Identity (this might e.g. happen on another device)
@@ -176,7 +176,7 @@ describe('Identity: remote updates', () => {
     expect(rightId.hasPost(commonPostKey)).toBeTruthy();
     expect(rightId.hasPost(leftOnlyKey)).toBeFalsy();
     expect(rightId.hasPost(rightOnlyKey)).toBeTruthy();
-    const rightMuc: cciCube = await rightId.marshall();
+    const rightMuc: Cube = await rightId.marshall();
 
     // merge right to left by adding right's MUC to left's CubeStore
     await cubeStore.addCube(rightMuc);

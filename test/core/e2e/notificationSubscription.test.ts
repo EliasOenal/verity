@@ -1,5 +1,5 @@
-import { Cube } from "../../../src/core/cube/cube";
-import { CubeFieldType, CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { keyVariants } from "../../../src/core/cube/keyUtil";
@@ -19,7 +19,7 @@ describe('Notification subscription e2e tests', () => {
   describe('test group 1', () => {
     const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as NotificationKey;
     let net: LineShapedNetwork;
-    const received: Cube[] = [];
+    const received: CoreCube[] = [];
 
     const content1 = 'Quaeso meam existentia cognoscas';
     const content2 = 'Habeo res magnas dicere';
@@ -61,7 +61,7 @@ describe('Notification subscription e2e tests', () => {
     });
 
     describe('notification propagation', () => {
-      let notification: Cube;
+      let notification: CoreCube;
       let key: CubeKey;
 
       let rcvdAtFullNode1: Promise<CubeInfo>;
@@ -70,7 +70,7 @@ describe('Notification subscription e2e tests', () => {
 
       beforeAll(async () => {
         // sculpt new notification at sender
-        notification = Cube.Create({
+        notification = CoreCube.Create({
           cubeType: CubeType.PIC_NOTIFY,
           fields: [
             CubeField.RawContent(CubeType.PIC_NOTIFY, content1),
@@ -137,7 +137,7 @@ describe('Notification subscription e2e tests', () => {
 
       it('will keep receiving notifications through the renewed subscription', async() => {
         // sculpt new notification at sender
-        const notification = Cube.Create({
+        const notification = CoreCube.Create({
           cubeType: CubeType.PIC_NOTIFY,
           fields: [
             CubeField.RawContent(CubeType.PIC_NOTIFY, content2),
@@ -178,7 +178,7 @@ describe('Notification subscription e2e tests', () => {
 
         // Sender sculpts yet another notification
         const latin = 'Numquis me audit?';
-        const notification = Cube.Create({
+        const notification = CoreCube.Create({
           cubeType: CubeType.PIC_NOTIFY,
           fields: [
             CubeField.RawContent(CubeType.PIC_NOTIFY, latin),
@@ -202,7 +202,7 @@ describe('Notification subscription e2e tests', () => {
   });  // test group 1
 });
 
-function containsCube(list: Cube[], expectedContent: string): boolean {
+function containsCube(list: CoreCube[], expectedContent: string): boolean {
   for (const cube of list) {
     const field = cube.getFirstField(CubeFieldType.PIC_NOTIFY_RAWCONTENT);
     if (field.valueString.includes(expectedContent)) return true;

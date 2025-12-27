@@ -3,7 +3,7 @@ import type { Peer } from "../../peering/peer";
 import type { PeerDB } from "../../peering/peerDB";
 import { SetNetworkManagerDefaults, type NetworkManagerIf, type NetworkManagerOptions } from "../networkManagerIf";
 import type { TransportParamMap, NetworkTransport } from "../transport/networkTransport";
-import type { CubeKey } from "../../cube/cube.definitions";
+import type { CubeKey } from "../../cube/coreCube.definitions";
 import type { CubeInfo } from "../../cube/cubeInfo";
 
 import { NetworkPeerIf, NetworkStats } from "../networkPeerIf";

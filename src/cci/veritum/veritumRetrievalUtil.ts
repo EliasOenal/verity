@@ -1,4 +1,4 @@
-import type { CubeKey } from "../../core/cube/cube.definitions";
+import type { CubeKey } from "../../core/cube/coreCube.definitions";
 import type { Veritum } from "./veritum";
 import type { Veritable } from "../../core/cube/veritable.definition";
 

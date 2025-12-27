@@ -4,7 +4,7 @@ import type { NetworkStats, NetworkPeerLifecycle, NetworkPeerOptions } from '../
 import type { NetworkManagerIf } from '../networkManagerIf';
 
 import { Settings } from '../../settings';
-import { CubeKey, NotificationKey } from '../../cube/cube.definitions';
+import { CubeKey, NotificationKey } from '../../cube/coreCube.definitions';
 import { CubeStore } from '../../cube/cubeStore';
 import { Peer } from '../../peering/peer';
 import { PeerDB } from '../../peering/peerDB';
@@ -12,7 +12,7 @@ import { TransportConnection } from '../transport/transportConnection';
 import { DummyNetworkManager } from './dummyNetworkManager';
 import { DummyTransportConnection } from './dummyTransportConnection';
 import { MessageClass, NetConstants, NodeType } from '../networkDefinitions';
-import { Cube } from '../../cube/cube';
+import { CoreCube } from '../../cube/coreCube';
 import { webcrypto as crypto } from 'crypto';
 
 export class DummyNetworkPeer extends Peer implements NetworkPeerIf {

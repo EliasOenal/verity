@@ -1,10 +1,10 @@
-import { CubeKey } from "../../../../core/cube/cube.definitions";
-import { Cube } from "../../../../core/cube/cube";
+import { CubeKey } from "../../../../core/cube/coreCube.definitions";
+import { CoreCube } from "../../../../core/cube/coreCube";
 import { asCubeKey, keyVariants } from "../../../../core/cube/keyUtil";
 import { logger } from "../../../../core/logger";
 
-import { FieldType } from "../../../../cci/cube/cciCube.definitions";
-import { cciCube } from "../../../../cci/cube/cciCube";
+import { FieldType } from "../../../../cci/cube/cube.definitions";
+import { Cube } from "../../../../cci/cube/cube";
 import { RelationshipType } from "../../../../cci/cube/relationship";
 import { RecursiveRelResolvingGetPostsGenerator, PostInfo, RecursiveRelResolvingPostInfo } from "../../../../cci/identity/identity.definitions";
 import { Identity } from "../../../../cci/identity/identity";
@@ -20,7 +20,7 @@ import { FileApplication } from '../../../fileApplication';
 import { Buffer } from 'buffer';
 import DOMPurify from 'dompurify';
 
-export interface PostData extends RecursiveRelResolvingPostInfo<Cube> {
+export interface PostData extends RecursiveRelResolvingPostInfo<CoreCube> {
   displayname?: string;
   authorsubscribed?: boolean | "self" | "none";
   text?: string;
@@ -38,7 +38,7 @@ export interface PostData extends RecursiveRelResolvingPostInfo<Cube> {
 export class PostController extends VerityController {
   declare public contentAreaView: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
-  private postGenerator: RecursiveRelResolvingGetPostsGenerator<Cube>;
+  private postGenerator: RecursiveRelResolvingGetPostsGenerator<CoreCube>;
 
   constructor(
       parent: ControllerContext,
@@ -136,7 +136,7 @@ export class PostController extends VerityController {
 
     // normalise input:
     // setting cube:
-    const cube: cciCube = postInfo.main as cciCube;
+    const cube: Cube = postInfo.main as Cube;
 
     // sanity checks
     if (!(await isPostDisplayable(postInfo))) {
@@ -155,10 +155,10 @@ export class PostController extends VerityController {
     this.parseAuthor(postInfo);
 
     // is this a reply?
-    const superiorPostPromise: Promise<PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>> =
-      postInfo[RelationshipType.REPLY_TO]?.[0] as Promise<PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>>;
+    const superiorPostPromise: Promise<PostInfo<CoreCube> & ResolveRelsRecursiveResult<CoreCube>> =
+      postInfo[RelationshipType.REPLY_TO]?.[0] as Promise<PostInfo<CoreCube> & ResolveRelsRecursiveResult<CoreCube>>;
     if (superiorPostPromise !== undefined) {  // yes
-      const superiorPost: PostInfo<Cube> & ResolveRelsRecursiveResult<Cube> = await superiorPostPromise;
+      const superiorPost: PostInfo<CoreCube> & ResolveRelsRecursiveResult<CoreCube> = await superiorPostPromise;
       const superiorPostKey: CubeKey = await superiorPost.main.getKey();
       postInfo.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
       if (!postInfo.superior) {

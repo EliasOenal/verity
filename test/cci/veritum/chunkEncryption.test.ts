@@ -2,14 +2,14 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { VerityFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/verityFields';
 import { VerityField } from '../../../src/cci/cube/verityField';
-import { FieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType, MediaTypes } from '../../../src/cci/cube/cube.definitions';
 import { CryptStateOutput } from '../../../src/cci/veritum/encryption.definitions';
 import { Encrypt } from '../../../src/cci/veritum/chunkEncryption';
 import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
 import { Decrypt } from '../../../src/cci/veritum/chunkDecryption';
 import { ApiMisuseError } from '../../../src/core/settings';
-import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
+import { CubeFieldType } from '../../../src/core/cube/coreCube.definitions';
 
 import sodium from 'libsodium-wrappers-sumo';
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';

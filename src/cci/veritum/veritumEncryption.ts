@@ -3,8 +3,8 @@ import { Veritable } from "../../core/cube/veritable.definition";
 import { logger } from "../../core/logger";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { FieldLength, FieldType } from "../cube/cciCube.definitions";
-import { cciCube } from "../cube/cciCube";
+import { FieldLength, FieldType } from "../cube/cube.definitions";
+import { Cube } from "../cube/cube";
 import { VerityField } from "../cube/verityField";
 import { VerityFields } from "../cube/verityFields";
 
@@ -36,8 +36,8 @@ export class ChunkEncryptionHelper {
   private nonceRedistSpace: number;
 
   private nonceList: Buffer[] = [];
-  supplementaryKeyChunks: cciCube[] = [];
-  recipientKeyChunkMap: Map<string, cciCube> = new Map();
+  supplementaryKeyChunks: Cube[] = [];
+  recipientKeyChunkMap: Map<string, Cube> = new Map();
 
   /** Number of key distribution chunks */
   keyChunkNo: number;
@@ -84,7 +84,7 @@ export class ChunkEncryptionHelper {
    * @param state The splitter's internal state, notably letting us know which
    *   chunk this is (i.e. the chunk index).
    */
-  transformChunk(chunk: cciCube, state: ChunkFinalisationState): void {
+  transformChunk(chunk: Cube, state: ChunkFinalisationState): void {
     if (this.shallEncrypt) {  // only act if encryption requested
       // Lazy-initialise nonce list
       if (this.nonceList.length < state.chunkCount) {
@@ -192,7 +192,7 @@ export class ChunkEncryptionHelper {
     // Calculate available space for first chunk
     // TODO: Offer this calculation deeper in the library and without
     // actually instatiating demo Cubes
-    const demoChunk = cciCube.Create({
+    const demoChunk = Cube.Create({
       ...this.options,
       cubeType: veritable.cubeType,
       fields: VerityField.Encrypted(Buffer.alloc(0)),
@@ -257,7 +257,7 @@ export class ChunkEncryptionHelper {
     return this.keyChunkNo > 1;
   }
 
-  private makeSupplementaryKeyDistributionChunks(chunk: cciCube): void {
+  private makeSupplementaryKeyDistributionChunks(chunk: Cube): void {
     for (let i = 1; i < this.keyChunkNo; i++) {
       // prepare params
       const chunkParams: CciEncryptionParams = { ... this.encryptionSchemeParams };
@@ -279,7 +279,7 @@ export class ChunkEncryptionHelper {
       const encRes: CryptStateOutput = EncryptPrePlanned(
         chunk.manipulateFields(), chunkParams);
       // Sculpt the supplementary chunk
-      const supplementaryChunk = cciCube.Create({
+      const supplementaryChunk = Cube.Create({
         ...this.options,
         cubeType: chunk.cubeType,
         fields: encRes.result,
@@ -290,7 +290,7 @@ export class ChunkEncryptionHelper {
     }
   }
 
-  private mapRecipientKeyChunk(recipients: Iterable<Buffer>, chunk: cciCube): void {
+  private mapRecipientKeyChunk(recipients: Iterable<Buffer>, chunk: Cube): void {
     for (const recipient of recipients) {
       this.recipientKeyChunkMap.set(keyVariants(recipient).keyString, chunk);
     }
@@ -311,9 +311,9 @@ export class ChunkEncryptionHelper {
 
 
 export function ChunkDecrypt(
-    chunks: Iterable<cciCube>,
+    chunks: Iterable<Cube>,
     options: VeritumFromChunksOptions = {},
-): Iterable<cciCube> {
+): Iterable<Cube> {
   if (options.preSharedKey || options.recipientPrivateKey) {
     // If decryption was requested, attempt chunk decryption
     const transformedChunks = [];

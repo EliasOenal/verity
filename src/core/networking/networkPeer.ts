@@ -8,11 +8,11 @@ import { TransportConnection } from './transport/transportConnection';
 import { NetworkPeerIf, NetworkPeerLifecycle, NetworkPeerOptions, NetworkStats } from './networkPeerIf';
 import { NetworkManagerIf } from './networkManagerIf';
 
-import { CubeKey, NotificationKey } from '../cube/cube.definitions';
+import { CubeKey, NotificationKey } from '../cube/coreCube.definitions';
 import { CubeStore } from '../cube/cubeStore';
 import { CubeInfo } from '../cube/cubeInfo';
 import { Sublevels } from '../cube/levelBackend';
-import { Cube } from '../cube/cube';
+import { CoreCube } from '../cube/coreCube';
 import { keyVariants } from '../cube/keyUtil';
 
 import { WebSocketAddress, AddressAbstraction } from '../peering/addressing';
@@ -898,7 +898,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     // NOTE: must use arrow syntax to have this event handler pre-bound;
     //  otherwise, event subscription will not properly cancel on close
     private sendSubscribedCubeUpdate: (cubeInfo: CubeInfo) => void = cubeInfo => {
-        const cube: Cube = cubeInfo.getCube();
+        const cube: CoreCube = cubeInfo.getCube();
         if (this._cubeSubscriptions.has(cube.getKeyStringIfAvailable())) {
             // Send KeyResponse with ExpressSync mode instead of full cube
             const reply = new KeyResponseMessage(KeyRequestMode.ExpressSync, [cubeInfo]);
@@ -912,7 +912,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     // together for potential further forwarding at the receiving node.
     // NOTE: must use arrow syntax to have this event handler pre-bound;
     //  otherwise, event subscription will not properly cancel on close
-    private sendNotificationUpdate: (notificationKey: CubeKey, cube: Cube) => void = (notificationKey, cube) => {
+    private sendNotificationUpdate: (notificationKey: CubeKey, cube: CoreCube) => void = (notificationKey, cube) => {
         if (this._notificationSubscriptions.has(keyVariants(notificationKey).keyString)) {
             // For notification updates, we need to create a CubeInfo from the cube
             // Since this is triggered by the notificationAdded event, we should be able to get the CubeInfo

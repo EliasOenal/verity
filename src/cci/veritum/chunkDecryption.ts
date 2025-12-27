@@ -1,7 +1,7 @@
 
 import { Settings } from "../../core/settings";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
-import { FieldType } from "../cube/cciCube.definitions";
+import { FieldType } from "../cube/cube.definitions";
 import { VerityFields } from "../cube/verityFields";
 import { CciDecryptionParams, CryptStateOutput } from "./encryption.definitions";
 
