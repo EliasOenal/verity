@@ -1,6 +1,3 @@
-// Add Promise.withResolvers polyfill for Node.js 20 compatibility
-import 'promise.withresolvers/auto';
-
 import { describe, it, expect } from 'vitest';
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
 
