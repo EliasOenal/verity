@@ -1,6 +1,3 @@
-// Add Promise.withResolvers polyfill for Node.js 20 compatibility
-import 'promise.withresolvers/auto';
-
 import { describe, it, expect } from 'vitest';
 import { CoreNode } from '../../../src/core/coreNode';
 import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
