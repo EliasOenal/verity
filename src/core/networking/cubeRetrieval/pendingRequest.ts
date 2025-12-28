@@ -1,4 +1,4 @@
-import { CubeKey } from "../../cube/cube.definitions";
+import { CubeKey } from "../../cube/coreCube.definitions";
 import { CubeInfo } from "../../cube/cubeInfo";
 import { Settings } from "../../settings";
 import { SubscriptionConfirmationMessage } from "../networkMessage";

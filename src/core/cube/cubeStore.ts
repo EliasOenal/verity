@@ -3,8 +3,8 @@ import { ApiMisuseError, Settings } from "../settings";
 
 import { Shuttable } from "../helpers/coreInterfaces";
 
-import { CubeType, CubeKey, CubeFieldType, HasNotify, NotificationKey } from "./cube.definitions";
-import { Cube, coreCubeFamily } from "./cube";
+import { CubeType, CubeKey, CubeFieldType, HasNotify, NotificationKey } from "./coreCube.definitions";
+import { CoreCube, coreCubeFamily } from "./coreCube";
 import { CubeFamilyDefinition } from "./cubeFields";
 import { CubeInfo } from "./cubeInfo";
 import { cubeContest, shouldRetainCube, getCurrentEpoch, activateCube } from "./cubeUtil";
@@ -20,7 +20,7 @@ import { EventEmitter } from "events";
 import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
 import { CubeEmitterEvents, CubeRetrievalInterface, CubeEmitter, CubeIteratorOptions, CubeIteratorOptionsSublevel } from "./cubeRetrieval.definitions";
-import { GetCubeOptions } from "./cube.definitions";
+import { GetCubeOptions } from "./coreCube.definitions";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -169,22 +169,22 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
    * @returns the Cube object that was added to storage, or undefined if it
    *   was not added
    */
-  async addCube(cube: Buffer, options?: AddCubeOptions): Promise<Cube>;
+  async addCube(cube: Buffer, options?: AddCubeOptions): Promise<CoreCube>;
   /**
    * Add a Cube object to storage.
    * (Note you cannot specify a custom family setting in this variant as the
    * Cube has already been parsed.)
    */
-  async addCube(cube: Cube, options?: AddCubeOptions): Promise<Cube>;
+  async addCube(cube: CoreCube, options?: AddCubeOptions): Promise<CoreCube>;
 
   // TODO (maybe): implement importing CubeInfo directly
   // TODO (someday): Instead of instantiiating a Cube object, we could optionally
   //  instead implement a limited set of checks directly on binary
   //  to alleviate load, especially on full nodes.
   async addCube(
-    cube_input: Cube | Buffer,
+    cube_input: CoreCube | Buffer,
     options: AddCubeOptions = {},
-  ): Promise<Cube> {
+  ): Promise<CoreCube> {
     // Copy input options and set defaults
     options = { ...options };
     options.families ??= this.options.family as CubeFamilyDefinition[];
@@ -192,8 +192,8 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     try {
       // If this Cube is currently inactive (i.e. only present as a binary blob),
       // activate it now (i.e. instantiate it as a Cube object).
-      let cube: Cube = undefined;
-      if (cube_input instanceof Cube) {
+      let cube: CoreCube = undefined;
+      if (cube_input instanceof CoreCube) {
         cube = cube_input;
         // set default options based on input type
         options.autoIncrementPmuc ??= true;
@@ -224,7 +224,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
           cubeInfo.date, cubeInfo.difficulty, getCurrentEpoch());
         if (!current) {
           logger.error(
-            `CubeStore: Cube is not valid for current epoch, discarding.`
+            `CubeStore: CoreCube is not valid for current epoch, discarding.`
           );
           return undefined;
         }
@@ -269,7 +269,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
         if (storedCube) {
           // There's a couple of special cases if this Cube replaces an older version.
           // Let's fetch both the previous and the current Cube's notifications.
-          const previousCube: Cube = storedCube.getCube();
+          const previousCube: CoreCube = storedCube.getCube();
           const previousNotification: NotificationKey =
             asNotificationKey(previousCube.getFirstField(CubeFieldType.NOTIFY)?.value);
           const newNotification: NotificationKey =
@@ -394,7 +394,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
    *        re-parsed. The CubeInfo is supposed to know which parser to use,
    *        but you can override it here if you want.
    */
-  async getCube<cubeClass extends Cube>(
+  async getCube<cubeClass extends CoreCube>(
     key: CubeKey | string,
     options: GetCubeOptions = {},
   ): Promise<cubeClass> {
@@ -542,7 +542,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     }
   }
 
-  async *getNotifications(recipientKey: Buffer|string, options?: {}): AsyncGenerator<Cube> {
+  async *getNotifications(recipientKey: Buffer|string, options?: {}): AsyncGenerator<CoreCube> {
     for await (const cubeInfo of this.getNotificationCubeInfos(recipientKey)) {
       yield cubeInfo.getCube();
     }
@@ -639,7 +639,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     });
   }
 
-  activateCube(binaryCube: Buffer): Cube {
+  activateCube(binaryCube: Buffer): CoreCube {
     return activateCube(
       binaryCube, this.options.family as Iterable<CubeFamilyDefinition>);
   }
@@ -660,13 +660,13 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     await this.leveldb?.wipeAll(Sublevels.CUBES);
   }
 
-  private async addNotification(cube: Cube): Promise<void> {
+  private async addNotification(cube: CoreCube): Promise<void> {
     // does this Cube even have a notification field?
     const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
     if (!recipient) return;
     if (Settings.RUNTIME_ASSERTIONS &&
       recipient?.length !== NetConstants.NOTIFY_SIZE) {
-      logger.error(`CubeStore.addNotification(): Cube ${cube.getKeyStringIfAvailable()} has a notify field of invalid size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping. This should never happen.`);
+      logger.error(`CubeStore.addNotification(): CoreCube ${cube.getKeyStringIfAvailable()} has a notify field of invalid size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping. This should never happen.`);
       return;
     }
 
@@ -680,13 +680,13 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
   }
 
   private async deleteNotification(cubeInfo: CubeInfo): Promise<void> {
-    const cube: Cube = cubeInfo.getCube();
+    const cube: CoreCube = cubeInfo.getCube();
     // does this Cube even have a notification field?
     const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
     if (!recipient) return;
     if (Settings.RUNTIME_ASSERTIONS &&
       recipient?.length !== NetConstants.NOTIFY_SIZE) {
-      logger.error(`CubeStore.deleteNotification(): Cube ${cubeInfo.keyString} has a notify field of invalid size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping. This should never happen.`);
+      logger.error(`CubeStore.deleteNotification(): CoreCube ${cubeInfo.keyString} has a notify field of invalid size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping. This should never happen.`);
       return;
     }
 

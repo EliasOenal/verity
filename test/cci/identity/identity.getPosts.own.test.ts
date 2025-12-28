@@ -1,5 +1,5 @@
 import { ArrayFromAsync, enumNums } from '../../../src/core/helpers/misc';
-import { CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/cube.definitions';
+import { CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
@@ -7,12 +7,12 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { IdentityOptions, GetPostsGenerator, PostInfo } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
 
-import { cciCube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { RetrievalFormat } from '../../../src/cci/veritum/veritum.definitions';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
 
 import { evenLonger, testCubeStoreParams } from '../testcci.definitions';
@@ -36,19 +36,19 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
   let masterKey: Buffer;
   let id: Identity;
 
-  let singleFrozen: cciCube;
-  let singleFrozenNotify: cciCube;
-  let singlePic: cciCube;
-  let singlePicNotify: cciCube;
-  let singleMuc: cciCube;
-  let singleMucNotify: cciCube;
-  let singlePmuc: cciCube;
-  let singlePmucNotify: cciCube;
+  let singleFrozen: Cube;
+  let singleFrozenNotify: Cube;
+  let singlePic: Cube;
+  let singlePicNotify: Cube;
+  let singleMuc: Cube;
+  let singleMucNotify: Cube;
+  let singlePmuc: Cube;
+  let singlePmucNotify: Cube;
   let multiFrozen: Veritum;
   let multiPic: Veritum;
   let singleFrozenEncrypted: Veritum;
 
-  let somebodyElsesPost: cciCube, myReply: cciCube, replyToUnavailable: cciCube;
+  let somebodyElsesPost: Cube, myReply: Cube, replyToUnavailable: Cube;
 
   beforeAll(async () => {
     await sodium.ready;
@@ -71,7 +71,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
 
     // Add some posts:
     // - a frozen single Cube post
-    singleFrozen = cciCube.Create({
+    singleFrozen = Cube.Create({
       cubeType: CubeType.FROZEN,
       fields: [
         VerityField.Payload("Commentarius ex uno cubo factus"),
@@ -84,7 +84,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
 
     // - a frozen single Cube post with notification
     const notificationKey1 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x41) as NotificationKey;
-    singleFrozenNotify = cciCube.Create({
+    singleFrozenNotify = Cube.Create({
       cubeType: CubeType.FROZEN_NOTIFY,
       fields: [
         VerityField.Payload("Commentarius ex uno cubo factus cum nuntio"),
@@ -97,7 +97,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     id.addPost(await singleFrozenNotify.getKey());
 
     // - a PIC single Cube post
-    singlePic = cciCube.Create({
+    singlePic = Cube.Create({
       cubeType: CubeType.PIC,
       fields: [
         VerityField.Payload("Commentarius ex cubo immutabili perpetuo factus"),
@@ -110,7 +110,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
 
     // - a PIC single Cube post with notification
     const notificationKey2 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as NotificationKey;
-    singlePicNotify = cciCube.Create({
+    singlePicNotify = Cube.Create({
       cubeType: CubeType.PIC_NOTIFY,
       fields: [
         VerityField.Payload("Commentarius ex cubo immutabili perpetuo factus cum nuntio"),
@@ -124,7 +124,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
 
     const singleMucKeys = sodium.crypto_sign_keypair();
     // - a MUC single Cube post
-    singleMuc = cciCube.Create({
+    singleMuc = Cube.Create({
       cubeType: CubeType.MUC,
       fields: [
         VerityField.Payload("Commentarius ex cubo usoris mutabili factus"),
@@ -140,7 +140,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a MUC single Cube post with notification
     const notificationKey3 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x43) as NotificationKey;
     const singleMucNotifyKeys = sodium.crypto_sign_keypair();
-    singleMucNotify = cciCube.Create({
+    singleMucNotify = Cube.Create({
       cubeType: CubeType.MUC_NOTIFY,
       fields: [
         VerityField.Payload("Commentarius ex cubo usoris mutabili factus cum nuntio"),
@@ -155,7 +155,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
 
     // - a PMUC single Cube post
     const singlePmucKeys = sodium.crypto_sign_keypair();
-    singlePmuc = cciCube.Create({
+    singlePmuc = Cube.Create({
       cubeType: CubeType.PMUC,
       fields: [
         VerityField.Payload("Commentarius ex cubo usoris mutabili perpetuo factus"),
@@ -172,7 +172,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a PMUC single Cube post with notification
     const notificationKey4 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x44) as NotificationKey;
     const singlePmucNotifyKeys = sodium.crypto_sign_keypair();
-    singlePmucNotify = cciCube.Create({
+    singlePmucNotify = Cube.Create({
       cubeType: CubeType.PMUC_NOTIFY,
       fields: [
         VerityField.Payload("Commentarius ex cubo usoris mutabili perpetuo factus cum nuntio"),
@@ -233,7 +233,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
 
     // test posts for automatic relationship retrieval:
     // - referencing another author's post
-    somebodyElsesPost = cciCube.Create({
+    somebodyElsesPost = Cube.Create({
       cubeType: CubeType.PIC,
       fields: [
         VerityField.Payload("Commentarium interessans responsione dignum"),
@@ -243,7 +243,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
     await cubeStore.addCube(somebodyElsesPost);
 
-    myReply = cciCube.Create({
+    myReply = Cube.Create({
       cubeType: CubeType.PIC,
       fields: [
         VerityField.Payload("Vere, quam interessante commentarium!"),
@@ -256,7 +256,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     id.addPost(await myReply.getKey());
 
     // - referencing an unavailable post
-    replyToUnavailable = cciCube.Create({
+    replyToUnavailable = Cube.Create({
       cubeType: CubeType.PIC,
       fields: [
         VerityField.Payload("Fruebar legendo commentarium tuum, dum licuit"),
@@ -309,7 +309,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('has actually encrypted the encrypted post', async () => {
-      const singleEncryptedRestored: cciCube =
+      const singleEncryptedRestored: Cube =
         await cubeStore.getCube(singleFrozenEncrypted.getKeyStringIfAvailable());
       expect(singleEncryptedRestored).toBeDefined();
       const payload = singleEncryptedRestored.getFirstField(FieldType.PAYLOAD);
@@ -355,7 +355,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       const singleFrozenRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozen.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singleFrozenRestored).toBeInstanceOf(Veritum);
-      if (format === RetrievalFormat.Cube) expect(singleFrozenRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Cube) expect(singleFrozenRestored).toBeInstanceOf(Cube);
       postEquals(singleFrozen, singleFrozenRestored);
     });
 
@@ -363,7 +363,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       const singleFrozenNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenNotify.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singleFrozenNotifyRestored).toBeInstanceOf(Veritum);
-      if (format === RetrievalFormat.Cube) expect(singleFrozenNotifyRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Cube) expect(singleFrozenNotifyRestored).toBeInstanceOf(Cube);
       postEquals(singleFrozenNotify, singleFrozenNotifyRestored);
     });
 
@@ -378,7 +378,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
         }
       }
       if (format === RetrievalFormat.Veritum) expect(singlePicRestored!).toBeInstanceOf(Veritum);
-      if (format === RetrievalFormat.Cube) expect(singlePicRestored!).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Cube) expect(singlePicRestored!).toBeInstanceOf(Cube);
       postEquals(singlePic, singlePicRestored!);
     });
 
@@ -386,7 +386,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       const singlePicNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singlePicNotify.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singlePicNotifyRestored).toBeInstanceOf(Veritum);
-      if (format === RetrievalFormat.Cube) expect(singlePicNotifyRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Cube) expect(singlePicNotifyRestored).toBeInstanceOf(Cube);
       postEquals(singlePicNotify, singlePicNotifyRestored);
     });
 
@@ -394,7 +394,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       const singleMucRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleMuc.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singleMucRestored).toBeInstanceOf(Veritum);
-      if (format === RetrievalFormat.Cube) expect(singleMucRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Cube) expect(singleMucRestored).toBeInstanceOf(Cube);
       postEquals(singleMuc, singleMucRestored);
     });
 
@@ -402,7 +402,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       const singleMucNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleMucNotify.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singleMucNotifyRestored).toBeInstanceOf(Veritum);
-      if (format === RetrievalFormat.Cube) expect(singleMucNotifyRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Cube) expect(singleMucNotifyRestored).toBeInstanceOf(Cube);
       postEquals(singleMucNotify, singleMucNotifyRestored);
     });
 
@@ -410,7 +410,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       const singlePmucRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singlePmuc.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singlePmucRestored).toBeInstanceOf(Veritum);
-      if (format === RetrievalFormat.Cube) expect(singlePmucRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Cube) expect(singlePmucRestored).toBeInstanceOf(Cube);
       postEquals(singlePmuc, singlePmucRestored);
     });
 
@@ -418,7 +418,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       const singlePmucNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singlePmucNotify.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singlePmucNotifyRestored).toBeInstanceOf(Veritum);
-      if (format === RetrievalFormat.Cube) expect(singlePmucNotifyRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Cube) expect(singlePmucNotifyRestored).toBeInstanceOf(Cube);
       postEquals(singlePmucNotify, singlePmucNotifyRestored);
     });
 
@@ -432,7 +432,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     if (format === RetrievalFormat.Cube) it('restores the first Cube of a frozen multi Cube post', () => {
       const multiFrozenRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === multiFrozen.getKeyStringIfAvailable())!;
-      expect(multiFrozenRestored).toBeInstanceOf(cciCube);
+      expect(multiFrozenRestored).toBeInstanceOf(Cube);
       postEquals(multiFrozen, multiFrozenRestored, 900);
       // we just compare the first 900 payload chars; if they match, we call it a day
     });
@@ -448,7 +448,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     if (format === RetrievalFormat.Cube) it('restores the first Cube of a PIC multi Cube post', () => {
       const multiPicRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable())!;
-      expect(multiPicRestored).toBeInstanceOf(cciCube);
+      expect(multiPicRestored).toBeInstanceOf(Cube);
       postEquals(multiPic, multiPicRestored, 900);
       // we just compare the first 900 payload chars; if they match, we call it a day
     });
@@ -464,7 +464,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     if (format === RetrievalFormat.Cube) it('returns the encrypteed raw Cube for an (frozen single Cube) encrypted post', () => {
       const singleFrozenEncryptedRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenEncrypted.getKeyStringIfAvailable())!;
-      expect(singleFrozenEncryptedRestored).toBeInstanceOf(cciCube);
+      expect(singleFrozenEncryptedRestored).toBeInstanceOf(Cube);
       // post is encrypted and payload is thus not available
       expect(singleFrozenEncryptedRestored.getFirstField(FieldType.PAYLOAD)).toBeUndefined();
       expect(singleFrozenEncryptedRestored.getFirstField(FieldType.ENCRYPTED)).toBeDefined();

@@ -1,19 +1,19 @@
 import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-import { CubeFieldLength, CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/cube.definitions';
+import { CubeFieldLength, CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
 import { CubeIteratorOptions } from '../../../src/core/cube/cubeRetrieval.definitions';
-import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
+import { CoreCube, coreCubeFamily } from '../../../src/core/cube/coreCube';
 import { CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
 import { Sublevels } from '../../../src/core/cube/levelBackend';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
 import { VerityField } from '../../../src/cci/cube/verityField';
-import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
+import { Cube, cciFamily } from '../../../src/cci/cube/cube';
 import { VerityFields } from '../../../src/cci/cube/verityFields';
 
 import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
-import { MediaTypes, FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { MediaTypes, FieldType } from '../../../src/cci/cube/cube.definitions';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
 
 import sodium from 'libsodium-wrappers-sumo'
@@ -30,7 +30,7 @@ async function populateStore(num: number, notify?: NotificationKey): Promise<Cub
   const keys: CubeKey[] = [];
   const cubeType = notify ? CubeType.PIC_NOTIFY : CubeType.PIC;
   for (let i = 0; i < num; i++) {
-    const cube = Cube.Create({
+    const cube = CoreCube.Create({
       cubeType,
       fields: CubeField.RawContent(cubeType, `Cubus numero ${i}`),
       requiredDifficulty: reducedDifficulty
@@ -91,21 +91,21 @@ describe('cubeStore', () => {
     it('should add a freshly sculpted cube at full difficulty', async () => {
       expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
       const content = paddedBuffer("Ego sum cubus recens sculputus.", CubeFieldLength[CubeFieldType.FROZEN_RAWCONTENT]!);
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: new CubeField(CubeFieldType.FROZEN_RAWCONTENT, content),
       });
       const key = await cube.getKey();
       await cubeStore.addCube(cube);
       expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
 
-      const restored: Cube = await cubeStore.getCube(key);
-      expect(restored).toBeInstanceOf(Cube);
+      const restored: CoreCube = await cubeStore.getCube(key);
+      expect(restored).toBeInstanceOf(CoreCube);
       expect(restored.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
         value).toEqual(content);
     });
 
     it('should add a cube from binary data', async () => {
-      const cube: Cube = await cubeStore.addCube(validBinaryCube);
+      const cube: CoreCube = await cubeStore.addCube(validBinaryCube);
       const cubeKey = await cube.getKey();
       expect(cubeKey).toBeInstanceOf(Buffer);
       expect(cubeKey.length).toEqual(32);
@@ -124,7 +124,7 @@ describe('cubeStore', () => {
     }, 3000);
 
     it('should not add cubes with insufficient difficulty', async () => {
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Cubus difficultatis insufficientis"),
         requiredDifficulty: 0,
       });
@@ -172,12 +172,12 @@ describe('cubeStore', () => {
 
         describe('adding and retrieving Cubes', () => {
           it('should add 2 Cubes and get them back [testing getAllCubeInfos()]', async () => {
-            const first: Cube = Cube.Frozen({
+            const first: CoreCube = CoreCube.Frozen({
               fields: CubeField.RawContent(
                 CubeType.FROZEN, "Cubus probationis primus"),
               requiredDifficulty: reducedDifficulty,
             });
-            const second: Cube = Cube.Frozen({
+            const second: CoreCube = CoreCube.Frozen({
               fields: CubeField.RawContent(
                 CubeType.FROZEN, "Cubus probationis secundus"),
               requiredDifficulty: reducedDifficulty,
@@ -186,8 +186,8 @@ describe('cubeStore', () => {
             await cubeStore.addCube(second);
             expect(await cubeStore.getNumberOfStoredCubes()).toBe(2);
 
-            const firstRestored: Cube = await cubeStore.getCube(await first.getKey());
-            const secondRestored: Cube = await cubeStore.getCube(await second.getKey());
+            const firstRestored: CoreCube = await cubeStore.getCube(await first.getKey());
+            const secondRestored: CoreCube = await cubeStore.getCube(await second.getKey());
             expect(firstRestored.getFirstField(CubeFieldType.FROZEN_RAWCONTENT)
               .valueString).toContain("Cubus probationis primus");
             expect(secondRestored.getFirstField(CubeFieldType.FROZEN_RAWCONTENT)
@@ -198,9 +198,9 @@ describe('cubeStore', () => {
 
           it('should add 20 Cubes and get them back [testing getCube() and getNumberOfStoredCubes()]', async () => {
             // create 20 cubes and wait till they are stored
-            const cubes: Cube[] = [];
+            const cubes: CoreCube[] = [];
             for (let i = 0; i < 20; i++) {
-              const cube = Cube.Frozen({
+              const cube = CoreCube.Frozen({
                 fields: CubeField.RawContent(CubeType.FROZEN,
                   `Cubus inutilis numero ${i.toString()} in repositorio tuo residens et spatium tuum consumens`),
                 requiredDifficulty: reducedDifficulty
@@ -213,8 +213,8 @@ describe('cubeStore', () => {
               const key: CubeKey = await cube.getKey();
               expect(key).toBeInstanceOf(Buffer);
               expect(key.length).toEqual(32);
-              const restoredCube: Cube = await cubeStore.getCube(key);
-              expect(restoredCube).toBeInstanceOf(Cube);
+              const restoredCube: CoreCube = await cubeStore.getCube(key);
+              expect(restoredCube).toBeInstanceOf(CoreCube);
               const binaryData = await cube.getBinaryData();
               expect(await (restoredCube.getBinaryData())).toEqual(binaryData);
             };
@@ -230,7 +230,7 @@ describe('cubeStore', () => {
             const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
             // Create original MUC
-            const muc = Cube.MUC(publicKey, privateKey, {
+            const muc = CoreCube.MUC(publicKey, privateKey, {
               fields: CubeField.RawContent(CubeType.MUC,
                 "Sum cubus usoris mutabilis, signatus a domino meo."),
               requiredDifficulty: reducedDifficulty
@@ -249,7 +249,7 @@ describe('cubeStore', () => {
             expect((await cubeStore.getCubeInfo(key)).date).toEqual(1695340000);
 
             // Create updated MUC
-            const muc2 = Cube.MUC(publicKey, privateKey, {
+            const muc2 = CoreCube.MUC(publicKey, privateKey, {
               fields: CubeField.RawContent(CubeType.MUC,
                 "Actualizatus sum a domino meo, sed clavis mea semper eadem est."),
               requiredDifficulty: reducedDifficulty
@@ -268,7 +268,7 @@ describe('cubeStore', () => {
 
             // Verify that the first MUC has been updated with the second MUC
             const retrievedMuc = await cubeStore.getCube(key);
-            expect(retrievedMuc).toBeInstanceOf(Cube);
+            expect(retrievedMuc).toBeInstanceOf(CoreCube);
             expect(retrievedMuc.getDate()).toEqual(1695340001);
           }, 5000);
 
@@ -280,7 +280,7 @@ describe('cubeStore', () => {
             const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
             // Create MUC
-            const muc = Cube.MUC(publicKey, privateKey, {
+            const muc = CoreCube.MUC(publicKey, privateKey, {
               fields: CubeField.RawContent(CubeType.MUC,
                 "Sum cubus usoris mutabilis, signatus a domino meo."),
               requiredDifficulty: reducedDifficulty
@@ -313,7 +313,7 @@ describe('cubeStore', () => {
 
             // Verify that the first MUC has been updated with the second MUC
             const retrievedMuc = await cubeStore.getCube(key);
-            expect(retrievedMuc).toBeInstanceOf(Cube);
+            expect(retrievedMuc).toBeInstanceOf(CoreCube);
             expect(retrievedMuc.getDate()).toEqual(1695340001);
           }, 5000);
 
@@ -324,7 +324,7 @@ describe('cubeStore', () => {
             const publicKey: Buffer = Buffer.from(keyPair.publicKey);
             const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-            const muc = Cube.MUC(publicKey, privateKey, {
+            const muc = CoreCube.MUC(publicKey, privateKey, {
               fields: CubeField.RawContent(CubeType.MUC,
                 "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum."),
               requiredDifficulty: reducedDifficulty
@@ -346,7 +346,7 @@ describe('cubeStore', () => {
           });
 
           it('should not parse TLV fields by default', async () => {
-            const spammyCube = cciCube.Frozen({  // Cube with 300 TLV fields
+            const spammyCube = Cube.Frozen({  // Cube with 300 TLV fields
               fields: Array.from({ length: 300 }, () => VerityField.Payload("!")),
               requiredDifficulty: reducedDifficulty,
             });
@@ -355,7 +355,7 @@ describe('cubeStore', () => {
             expect(spammyCube.fieldCount).toBeGreaterThan(300);  // lots of spam
             await cubeStore.addCube(spammyBinary);
 
-            const restored: Cube = await cubeStore.getCube(spamKey);
+            const restored: CoreCube = await cubeStore.getCube(spamKey);
             expect(restored.fieldCount).toEqual(4);  // spam ignored
           });
         });
@@ -364,7 +364,7 @@ describe('cubeStore', () => {
           describe('PMUC_UPDATE_COUNT auto-increment', () => {
             describe('auto-increment tests', () => {
               it('should set the count to 1 if no previous version exists', async () => {
-                const cube = Cube.Create({
+                const cube = CoreCube.Create({
                   cubeType: CubeType.PMUC,
                   fields: CubeField.RawContent(CubeType.PMUC,
                     "Pudibundus sum. Certus sum me primum fore, sed alium id mihi dicere volo."
@@ -384,7 +384,7 @@ describe('cubeStore', () => {
 
               it('should also auto-increment a zero count to one on a notification PMUC', async () => {
                 const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as NotificationKey;
-                const cube = Cube.Create({
+                const cube = CoreCube.Create({
                   cubeType: CubeType.PMUC_NOTIFY,
                   fields: [
                     CubeField.RawContent(CubeType.PMUC_NOTIFY,
@@ -407,7 +407,7 @@ describe('cubeStore', () => {
               });
 
               it('should increment the count if a previous version exists', async () => {
-                const previous = Cube.Create({
+                const previous = CoreCube.Create({
                   cubeType: CubeType.PMUC,
                   fields: [
                     CubeField.RawContent(CubeType.PMUC, "Ego prior adfui."),
@@ -418,7 +418,7 @@ describe('cubeStore', () => {
                 });
                 await cubeStore.addCube(previous);
 
-                const cube = Cube.Create({
+                const cube = CoreCube.Create({
                   cubeType: CubeType.PMUC,
                   fields: CubeField.RawContent(CubeType.PMUC,
                     "Vita mea ab aliis determinatur. Ab alio meum locum indicante dependeo."
@@ -437,7 +437,7 @@ describe('cubeStore', () => {
               });
 
               it('should recompile the Cube if necessary', async () => {
-                const cube = Cube.Create({
+                const cube = CoreCube.Create({
                   cubeType: CubeType.PMUC,
                   fields: CubeField.RawContent(CubeType.PMUC,
                     "Pudibundus sum. Certus sum me primum fore, sed alium id mihi dicere volo."
@@ -459,7 +459,7 @@ describe('cubeStore', () => {
               it('should start the count at 1 if the previous version does not have a counter', async () => {
                 // The previous version in this case is a plain MUC;
                 // thus it does not have a PMUC_UPDATE_COUNT field.
-                const previous = Cube.Create({
+                const previous = CoreCube.Create({
                   cubeType: CubeType.MUC,
                   fields: CubeField.RawContent(CubeType.MUC, "Cubus sine numero"),
                   publicKey, privateKey,
@@ -467,7 +467,7 @@ describe('cubeStore', () => {
                 });
                 await cubeStore.addCube(previous);
 
-                const cube = Cube.Create({
+                const cube = CoreCube.Create({
                   cubeType: CubeType.PMUC,
                   fields: CubeField.RawContent(CubeType.PMUC,
                     "Hic simplex cubus usoris mutabilis renovabitur ut fiat cubus usoris mutabilis persistens."
@@ -488,7 +488,7 @@ describe('cubeStore', () => {
 
             describe('negative feature tests', () => {
               it('should do nothing if a manual update count is set (Cube accepted case)', async () => {
-                const cube = Cube.Create({
+                const cube = CoreCube.Create({
                   cubeType: CubeType.PMUC,
                   fields: [
                     CubeField.RawContent(CubeType.PMUC, "Ne auderis numerum mihi attribuere!"),
@@ -508,7 +508,7 @@ describe('cubeStore', () => {
               });
 
               it('should do nothing if a manual update count is set (Cube refused case)', async () => {
-                const newer = Cube.Create({
+                const newer = CoreCube.Create({
                   cubeType: CubeType.PMUC,
                   fields: [
                     CubeField.RawContent(CubeType.PMUC, "Haec est versio recentior."),
@@ -519,7 +519,7 @@ describe('cubeStore', () => {
                 });
                 await cubeStore.addCube(newer);
 
-                const candidate = Cube.Create({
+                const candidate = CoreCube.Create({
                   cubeType: CubeType.PMUC,
                   fields: [
                     CubeField.RawContent(CubeType.PMUC, "Haec est versio vetustior."),
@@ -539,7 +539,7 @@ describe('cubeStore', () => {
               });
 
               it('should by default not auto-increment on Cubes supplied as binary (e.g. arriving over the wire)', async () => {
-                const cube = Cube.Create({
+                const cube = CoreCube.Create({
                   cubeType: CubeType.PMUC,
                   fields: CubeField.RawContent(CubeType.PMUC,
                     "Nullius numeri sum et id te non pertinet."
@@ -700,9 +700,9 @@ describe('cubeStore', () => {
             const n = 5;
             const notificationKey = asNotificationKey(
               Buffer.alloc(NetConstants.NOTIFY_SIZE, 0x1337));
-            const notifications: Cube[] = [];
+            const notifications: CoreCube[] = [];
             for (let i = 0; i < n; i++) {
-              const notification = Cube.Create({
+              const notification = CoreCube.Create({
                 cubeType: CubeType.PIC_NOTIFY,
                 fields: [
                   CubeField.Notify(notificationKey),
@@ -838,7 +838,7 @@ describe('cubeStore', () => {
             // create two Cubes notifying this receiver --
             // this tests sculpts the Cubes "manually" while the next one will
             // use the convenience helpers
-            const cube1 = new Cube(CubeType.FROZEN_NOTIFY, {
+            const cube1 = new CoreCube(CubeType.FROZEN_NOTIFY, {
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
                 [
@@ -849,7 +849,7 @@ describe('cubeStore', () => {
             });
             await cubeStore.addCube(cube1);
 
-            const cube2 = new Cube(CubeType.FROZEN_NOTIFY, {
+            const cube2 = new CoreCube(CubeType.FROZEN_NOTIFY, {
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
                 [
@@ -881,8 +881,8 @@ describe('cubeStore', () => {
           it('should emit notificationAdded events', async () => {
             // prepare event handler
             const notifyKeysEmitted: CubeKey[] = [];
-            const notifyCubesEmitted: Cube[] = [];
-            const handler = (key: CubeKey, cube: Cube) => {
+            const notifyCubesEmitted: CoreCube[] = [];
+            const handler = (key: CubeKey, cube: CoreCube) => {
               notifyKeysEmitted.push(key);
               notifyCubesEmitted.push(cube)
             }
@@ -892,7 +892,7 @@ describe('cubeStore', () => {
             // this test will use the convenience helpers while the previous
             // one sculpted them manually
             const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84) as NotificationKey;
-            const cube1 = Cube.Frozen({
+            const cube1 = CoreCube.Frozen({
               fields: [
                 CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
                 CubeField.Notify(recipientKey1),
@@ -916,7 +916,7 @@ describe('cubeStore', () => {
             // this test will use the convenience helpers while the previous
             // one sculpted them manually
             const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84) as NotificationKey;
-            const cube1 = Cube.Frozen({
+            const cube1 = CoreCube.Frozen({
               fields: [
                 CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
                 CubeField.Notify(recipientKey1),
@@ -927,7 +927,7 @@ describe('cubeStore', () => {
 
             // sculpt a Cube notifying another receiver
             const recipientKey2 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 1337) as NotificationKey;
-            const cube2 = Cube.Frozen({
+            const cube2 = CoreCube.Frozen({
               fields: [
                 CubeField.Notify(recipientKey2),
                 CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis pro alio destinatoria"),
@@ -937,20 +937,20 @@ describe('cubeStore', () => {
             await cubeStore.addCube(cube2);
 
             // sculpt a non-notification Cube
-            const cube3 = Cube.Frozen({
+            const cube3 = CoreCube.Frozen({
               fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus neminem notificationem facit")
             })
             await cubeStore.addCube(cube3);
 
             // Ensure the correct Cubes are returned upon notification retrieval
-            const notificationsForKey1: Cube[] = [];
+            const notificationsForKey1: CoreCube[] = [];
             for await (const cube of cubeStore.getNotifications(recipientKey1)) {
               notificationsForKey1.push(cube);
             }
             expect(notificationsForKey1).toHaveLength(1);
             expect(await notificationsForKey1[0].getKey()).toEqual(await cube1.getKey());
 
-            const notificationsForKey2: Cube[] = [];
+            const notificationsForKey2: CoreCube[] = [];
             for await (const cube of cubeStore.getNotifications(recipientKey1)) {
               notificationsForKey2.push(cube);
             }
@@ -962,7 +962,7 @@ describe('cubeStore', () => {
             const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 50);
 
             // Cube without a NOTIFY field
-            const cube = new Cube(CubeType.FROZEN, {
+            const cube = new CoreCube(CubeType.FROZEN, {
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN].fieldDef,
                 [CubeField.RawContent(CubeType.FROZEN, "No notification here")]
@@ -971,7 +971,7 @@ describe('cubeStore', () => {
             });
             await cubeStore.addCube(cube);
 
-            const notifications: Cube[] = [];
+            const notifications: CoreCube[] = [];
             for await (const notification of cubeStore.getNotifications(recipientKey)) {
               notifications.push(notification);
             }
@@ -983,7 +983,7 @@ describe('cubeStore', () => {
             const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 60) as NotificationKey;
 
             // Original notification Cube
-            const cube1: Cube = Cube.Create({
+            const cube1: CoreCube = CoreCube.Create({
               cubeType: CubeType.PMUC_NOTIFY,
               fields: [
                   CubeField.Notify(recipientKey),
@@ -996,7 +996,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(cube1);
 
             // Replacing with a non-notification Cube
-            const cube2: Cube = Cube.Create({
+            const cube2: CoreCube = CoreCube.Create({
               cubeType: CubeType.PMUC,
               fields: [
                 CubeField.RawContent(CubeType.PMUC, "Replaced with no notification"),
@@ -1007,7 +1007,7 @@ describe('cubeStore', () => {
             });
             await cubeStore.addCube(cube2);
 
-            const notifications: Cube[] = [];
+            const notifications: CoreCube[] = [];
             for await (const notification of cubeStore.getNotifications(recipientKey)) {
               notifications.push(notification);
             }
@@ -1019,7 +1019,7 @@ describe('cubeStore', () => {
             const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84) as NotificationKey;
 
             // Initial non-notification Cube
-            const nonNotificationCube = Cube.Create({
+            const nonNotificationCube = CoreCube.Create({
               cubeType: CubeType.PMUC,
               fields: [
                 CubeField.RawContent(CubeType.PMUC, "Initial non-notification Cube"),
@@ -1032,7 +1032,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(nonNotificationCube);
 
             // Notification Cube replacing the non-notification Cube
-            const notificationCube = Cube.Create({
+            const notificationCube = CoreCube.Create({
               cubeType: CubeType.PMUC_NOTIFY,
               fields: [
                 CubeField.Notify(recipientKey),
@@ -1046,7 +1046,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(notificationCube);
 
             // Ensure the notification is indexed correctly
-            const notifications: Cube[] = [];
+            const notifications: CoreCube[] = [];
             for await (const notification of cubeStore.getNotifications(recipientKey)) {
               notifications.push(notification);
             }
@@ -1060,7 +1060,7 @@ describe('cubeStore', () => {
             const invalidRecipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE - 1, 42); // Invalid key size (too short)
 
             // Cube with valid notification field
-            const validCube = Cube.Create({
+            const validCube = CoreCube.Create({
               cubeType: CubeType.FROZEN_NOTIFY,
               fields: CubeField.Notify(validRecipientKey),
               requiredDifficulty: reducedDifficulty,
@@ -1069,7 +1069,7 @@ describe('cubeStore', () => {
             // Cube with invalid notification field
             // Note the standard Create is too smart and will not allow this;
             // that's why we're hand-crafting the Cube.
-            const invalidCube = new Cube(CubeType.FROZEN_NOTIFY, {
+            const invalidCube = new CoreCube(CubeType.FROZEN_NOTIFY, {
               requiredDifficulty: reducedDifficulty,
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
@@ -1082,7 +1082,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(invalidCube);
 
             // Ensure only the valid notification is stored
-            const notifications: Cube[] = [];
+            const notifications: CoreCube[] = [];
             for await (const notification of cubeStore.getNotifications(validRecipientKey)) {
               notifications.push(notification);
             }
@@ -1091,7 +1091,7 @@ describe('cubeStore', () => {
             expect(await notifications[0].getKey()).toEqual(await validCube.getKey());
 
             // Ensure no notifications were stored for the invalid key
-            const invalidNotifications: Cube[] = [];
+            const invalidNotifications: CoreCube[] = [];
             for await (const notification of cubeStore.getNotifications(invalidRecipientKey)) {
               invalidNotifications.push(notification);
             }
@@ -1127,7 +1127,7 @@ describe('cubeStore', () => {
 
         it("stores CCI Cubes by default", async () => {
           // prepare a CCI Cube
-          const cube: cciCube = cciCube.Frozen({
+          const cube: Cube = Cube.Frozen({
             fields: [
               VerityField.Application("Applicatio probandi"),
               VerityField.MediaType(MediaTypes.TEXT),
@@ -1145,9 +1145,9 @@ describe('cubeStore', () => {
 
           // restore Cube from store --
           // expect it to restore as CCI Cube as that's our default setting
-          const restored: cciCube = await cubeStore.getCube(key) as cciCube;
+          const restored: Cube = await cubeStore.getCube(key) as Cube;
           expect(restored).toBeTruthy();
-          expect(restored).toBeInstanceOf(cciCube);
+          expect(restored).toBeInstanceOf(Cube);
           expect(restored.fields).toBeInstanceOf(VerityFields);
           expect(restored.getFirstField(FieldType.APPLICATION).value.toString())
             .toEqual("Applicatio probandi");
@@ -1162,7 +1162,7 @@ describe('cubeStore', () => {
 
         it('can still store non-CCI Cubes as core Cubes', async () => {
           // prepare a non-CCI Cube
-          const cube: Cube = Cube.Frozen({ requiredDifficulty: reducedDifficulty });
+          const cube: CoreCube = CoreCube.Frozen({ requiredDifficulty: reducedDifficulty });
           const rawContentField = cube.getFirstField(CubeFieldType.FROZEN_RAWCONTENT);
           // fill the raw content field with something that's definitely
           // not CCI-parseable (and notably does not start with 0x00 so the
@@ -1173,7 +1173,7 @@ describe('cubeStore', () => {
           await cubeStore.addCube(binaryCube);
 
           // restore Cube from store
-          const restored: Cube = await cubeStore.getCube(await cube.getKey());
+          const restored: CoreCube = await cubeStore.getCube(await cube.getKey());
           const restoredContent = restored.getFirstField(CubeFieldType.FROZEN_RAWCONTENT);
           expect(restoredContent.type).toEqual(rawContentField.type);
           expect(restoredContent.value).toEqual(rawContentField.value);

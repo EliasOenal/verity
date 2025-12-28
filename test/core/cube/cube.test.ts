@@ -7,8 +7,8 @@ import { BaseField } from '../../../src/core/fields/baseField';
 import { BaseFields } from '../../../src/core/fields/baseFields';
 import { FieldParser } from '../../../src/core/fields/fieldParser';
 
-import { BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey, RawcontentFieldType } from '../../../src/core/cube/cube.definitions';
-import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
+import { BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey, RawcontentFieldType } from '../../../src/core/cube/coreCube.definitions';
+import { CoreCube, coreCubeFamily } from '../../../src/core/cube/coreCube';
 import { calculateHash, countTrailingZeroBits, paddedBuffer, verifySignature } from '../../../src/core/cube/cubeUtil';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition, CoreFieldParsers } from '../../../src/core/cube/cubeFields';
@@ -62,7 +62,7 @@ describe('cube', () => {
   describe('constructor (from scratch)', () => {
     it('should construct a cube object from binary data.', () => {
       expect(() => validBinaryCube.length === 1024).toBeTruthy();
-      const cube = new Cube(validBinaryCube);
+      const cube = new CoreCube(validBinaryCube);
       const fields = cube.fields.all;
       fields.forEach(field => {
         expect(field.length).toBeLessThanOrEqual(1024);
@@ -79,13 +79,13 @@ describe('cube', () => {
     }, 3000);
 
     it('construct a Cube object with no fields by default', () => {
-      const cube = new Cube(CubeType.FROZEN);
+      const cube = new CoreCube(CubeType.FROZEN);
       expect(cube.fieldCount).toEqual(0);
     }, 3000);
 
     it('should throw an error when binary data is not the correct length', () => {
-      expect(() => new Cube(Buffer.alloc(512))).toThrow(BinaryLengthError);  // too short
-      expect(() => new Cube(Buffer.alloc(578232))).toThrow(BinaryLengthError);  // too long
+      expect(() => new CoreCube(Buffer.alloc(512))).toThrow(BinaryLengthError);  // too short
+      expect(() => new CoreCube(Buffer.alloc(578232))).toThrow(BinaryLengthError);  // too long
     }, 3000);
 
     // TODO: move this test to CCI or get rid of it
@@ -93,7 +93,7 @@ describe('cube', () => {
     // fields are mandatory, all fields are fixed size and therefore a Cube
     // is always maximum size.
     it('should accept maximum size cubes', async () => {
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN,
           "Hic Cubus maximae magnitudinis est"),
         requiredDifficulty: requiredDifficulty
@@ -106,7 +106,7 @@ describe('cube', () => {
   describe('copy constructor', () => {
     it('should copy a Cube object', async () => {
       // TODO make test for each Cube type and for both compiled and uncompiled state
-      const cube = Cube.Create({
+      const cube = CoreCube.Create({
         cubeType: CubeType.FROZEN,
         fields: CubeField.RawContent(CubeType.FROZEN,
           "Hic Cubus maximae magnitudinis est"),
@@ -114,7 +114,7 @@ describe('cube', () => {
       });
       await cube.compile();
 
-      const copy = new Cube(cube);
+      const copy = new CoreCube(cube);
 
       expect(copy).not.toBe(cube);
 
@@ -140,7 +140,7 @@ describe('cube', () => {
 
   describe('setters and getters', () => {
     it('should set and get fields correctly', () => {
-      const cube = new Cube(CubeType.FROZEN, { requiredDifficulty: 0 });
+      const cube = new CoreCube(CubeType.FROZEN, { requiredDifficulty: 0 });
       const fields = new CubeFields([
         CubeField.Type(CubeType.FROZEN),
         CubeField.RawContent(CubeType.FROZEN,
@@ -155,7 +155,7 @@ describe('cube', () => {
     });
 
     it('should set and get the date correctly', () => {
-      const cube = Cube.Create({
+      const cube = CoreCube.Create({
         cubeType: CubeType.FROZEN, requiredDifficulty: 0 });
       const date = unixtime();
       cube.setDate(date);
@@ -168,7 +168,7 @@ describe('cube', () => {
 
   describe('static Create()', () => {
     it('correctly sculpts a frozen cube', () => {
-      const cube = Cube.Create({
+      const cube = CoreCube.Create({
         cubeType: CubeType.FROZEN,
         fields: CubeField.RawContent(CubeType.FROZEN, "hello Cube"),
         requiredDifficulty: requiredDifficulty,
@@ -180,20 +180,20 @@ describe('cube', () => {
     });
 
     it('should throw an error if a signed type is requested without a key pair', () => {
-        expect(() => Cube.Create({ cubeType: CubeType.MUC })).
+        expect(() => CoreCube.Create({ cubeType: CubeType.MUC })).
           toThrow(ApiMisuseError);
     });
 
     it('should create a Cube with a signed type when a valid key pair is provided', async () => {
         const type = CubeType.MUC;
-        const cube = Cube.Create({
+        const cube = CoreCube.Create({
           cubeType: type,
           publicKey: commonPublicKey,
           privateKey: commonPrivateKey,
           requiredDifficulty: requiredDifficulty,
         });
 
-        expect(cube).toBeInstanceOf(Cube);
+        expect(cube).toBeInstanceOf(CoreCube);
         expect(cube.cubeType).toBe(type);
         expect(cube.fields).toBeInstanceOf(CubeFields);
         expect(cube.getFirstField(CubeFieldType.PUBLIC_KEY)?.value).toEqual(Buffer.from(commonKeyPair.publicKey));
@@ -202,14 +202,14 @@ describe('cube', () => {
 
     it('should adopt options-supplied publicKey and privateKey and normalise them to Buffer if necessary', () => {
         const type = CubeType.MUC;
-        const cube = Cube.Create({
+        const cube = CoreCube.Create({
           cubeType: type,
           publicKey: commonPublicKey,
           privateKey: commonPrivateKey,
           requiredDifficulty: requiredDifficulty,
         });
 
-        expect(cube).toBeInstanceOf(Cube);
+        expect(cube).toBeInstanceOf(CoreCube);
         expect(Buffer.isBuffer(cube.publicKey)).toBe(true);
         expect(Buffer.isBuffer(cube.privateKey)).toBe(true);
         expect(cube.publicKey.equals(commonPublicKey)).toBe(true);
@@ -218,7 +218,7 @@ describe('cube', () => {
 
     it('should prefer an options-supplied public key over an existing PUBLIC_KEY field', () => {
         const type = CubeType.PMUC;
-        const cube = Cube.Create({
+        const cube = CoreCube.Create({
           cubeType: type,
           publicKey: commonPublicKey,
           privateKey: commonPrivateKey,
@@ -227,7 +227,7 @@ describe('cube', () => {
           requiredDifficulty: requiredDifficulty,
         });
 
-        expect(cube).toBeInstanceOf(Cube);
+        expect(cube).toBeInstanceOf(CoreCube);
         expect(Buffer.isBuffer(cube.publicKey)).toBe(true);
         expect(Buffer.isBuffer(cube.privateKey)).toBe(true);
         expect(cube.publicKey.equals(commonPublicKey)).toBe(true);
@@ -240,14 +240,14 @@ describe('cube', () => {
         const notifyType = CubeType.FROZEN_NOTIFY;
         const fields = new CubeField(CubeFieldType.NOTIFY, Buffer.alloc(NetConstants.NOTIFY_SIZE, 42));
 
-        const cube = Cube.Create({ cubeType, fields, requiredDifficulty });
+        const cube = CoreCube.Create({ cubeType, fields, requiredDifficulty });
 
         expect(cube.cubeType).toBe(notifyType);
     });
 
     it('should set default family and requiredDifficulty if not provided', () => {
         const cubeType = CubeType.FROZEN;
-        const cube = Cube.Create({cubeType});
+        const cube = CoreCube.Create({cubeType});
 
         expect(cube.family).toBe(coreCubeFamily);
         expect(cube.requiredDifficulty).toBe(Settings.REQUIRED_DIFFICULTY);
@@ -257,7 +257,7 @@ describe('cube', () => {
         const cubeType = CubeType.MUC;
         const publicKey = Buffer.alloc(30);  // incorrect size
 
-        expect(() => Cube.Create(
+        expect(() => CoreCube.Create(
           { cubeType, publicKey, privateKey: commonPrivateKey })).
           toThrow(ApiMisuseError);
     });
@@ -265,7 +265,7 @@ describe('cube', () => {
 
   describe('compile()', () => {
     it('should compile fields correctly even after manipulating them', async () => {
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, " "),
         requiredDifficulty: requiredDifficulty
       });
@@ -282,7 +282,7 @@ describe('cube', () => {
 
     it('should recompile fields correctly after manipulating them', async () => {
       // sculpt Cube
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
         requiredDifficulty: requiredDifficulty
       });
@@ -314,7 +314,7 @@ describe('cube', () => {
 
   describe('hashing', () => {
     it('should calculate the hash correctly', async () => {
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Quaeso computa digestum meum"),
         requiredDifficulty: requiredDifficulty
       });
@@ -334,7 +334,7 @@ describe('cube', () => {
     }, 3000);
 
     it('should create a new cube that meets the challenge requirements', async () => {
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, 'Exigo requisitum provocationis')
       });
       const key: Buffer = await cube.getKey();
@@ -350,7 +350,7 @@ describe('cube', () => {
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
       // sculpts a MUC
-      const muc: Cube = Cube.MUC(
+      const muc: CoreCube = CoreCube.MUC(
         publicKey, privateKey, {
         fields: [
           CubeField.RawContent(CubeType.MUC,
@@ -383,7 +383,7 @@ describe('cube', () => {
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
       // sculpts a MUC
-      const muc: Cube = Cube.MUC(
+      const muc: CoreCube = CoreCube.MUC(
         publicKey, privateKey, {
         fields: [
           CubeField.RawContent(CubeType.MUC,
@@ -437,7 +437,7 @@ describe('cube', () => {
           const fields: CubeFields = CubeFields.DefaultPositionals(
             CoreFieldParsers[type].fieldDef, incompleteFieldset);
           // sculpt Cube
-          const cube: Cube = new Cube(type, {
+          const cube: CoreCube = new CoreCube(type, {
             fields: fields,
             requiredDifficulty: requiredDifficulty,
           });
@@ -467,7 +467,7 @@ describe('cube', () => {
           }
 
           // decompile the Cube and check if the content is still the same
-          const recontructed: Cube = new Cube(binaryData);
+          const recontructed: CoreCube = new CoreCube(binaryData);
           expect(recontructed.cubeType).toBe(type);
           expect(recontructed.getFirstField(RawcontentFieldType[type]!).value).
             toEqual(paddedBuffer(
@@ -484,7 +484,7 @@ describe('cube', () => {
     describe('getKey() by Cube type', () => {
       enumNums(CubeType).forEach((type) => {  // perform the tests for every CubeType
         // prepare verification function
-        async function verifyKey(cube: Cube) {
+        async function verifyKey(cube: CoreCube) {
           // run test
           const key: CubeKey = await cube.getKey();
 
@@ -514,7 +514,7 @@ describe('cube', () => {
 
         it(`returns the correct key for a freshly sculpted ${CubeType[type]} Cube`, async () => {
           // sculpt Cube
-          const cube: Cube = Cube.Create({
+          const cube: CoreCube = CoreCube.Create({
             cubeType: type,
             requiredDifficulty: requiredDifficulty,
             // supplying keys for signed types only --
@@ -528,7 +528,7 @@ describe('cube', () => {
 
         it(`returns the correct key for a ${CubeType[type]} Cube reactivated from binary data`, async () => {
           // sculpt Cube
-          const cube: Cube = Cube.Create({
+          const cube: CoreCube = CoreCube.Create({
             cubeType: type,
             requiredDifficulty: requiredDifficulty,
             // supplying keys for signed types only --
@@ -539,7 +539,7 @@ describe('cube', () => {
           // compile cube
           const binaryData: Buffer = await cube.getBinaryData();
           // reactivate Cube
-          const reactivate: Cube = new Cube(binaryData);
+          const reactivate: CoreCube = new CoreCube(binaryData);
           // run test
           await verifyKey(reactivate);
         });
@@ -554,7 +554,7 @@ describe('cube', () => {
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-        const muc = Cube.MUC(
+        const muc = CoreCube.MUC(
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis."),
@@ -575,7 +575,7 @@ describe('cube', () => {
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
         // Create a new MUC with specified TLV fields
-        const muc = new Cube(CubeType.MUC, { requiredDifficulty: requiredDifficulty });
+        const muc = new CoreCube(CubeType.MUC, { requiredDifficulty: requiredDifficulty });
         muc.privateKey = privateKey;
 
         const fields = new CubeFields([
@@ -604,7 +604,7 @@ describe('cube', () => {
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-        const muc = Cube.MUC(
+        const muc = CoreCube.MUC(
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis, semper secure signatus."),
@@ -637,8 +637,8 @@ describe('cube', () => {
         expect(() => muc.validateCube()).not.toThrow();
         // try to re-instantiate
 
-        const parsedMuc = new Cube(binaryData);
-        expect(parsedMuc).toBeInstanceOf(Cube);
+        const parsedMuc = new CoreCube(binaryData);
+        expect(parsedMuc).toBeInstanceOf(CoreCube);
         expect(parsedMuc.getKeyIfAvailable().equals(mucKey)).toBeTruthy();
       });
 
@@ -649,7 +649,7 @@ describe('cube', () => {
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
         // Create a new MUC with a random payload
-        const muc = Cube.MUC(publicKey, privateKey, {
+        const muc = CoreCube.MUC(publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest."),
           requiredDifficulty: requiredDifficulty
@@ -660,8 +660,8 @@ describe('cube', () => {
         const binMuc: Buffer = await muc.getBinaryData();
         expect(binMuc).toBeInstanceOf(Buffer);
 
-        const coreParsedMuc = new Cube(binMuc);
-        expect(coreParsedMuc).toBeInstanceOf(Cube);
+        const coreParsedMuc = new CoreCube(binMuc);
+        expect(coreParsedMuc).toBeInstanceOf(CoreCube);
         expect(coreParsedMuc.fieldCount).toEqual(6);
         expect(coreParsedMuc.fields.all[0].type).toEqual(CubeFieldType.TYPE);
         expect(coreParsedMuc.fields.all[1].type).toEqual(CubeFieldType.MUC_RAWCONTENT);
@@ -684,7 +684,7 @@ describe('cube', () => {
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
         // Sculpt MUC
-        const muc = Cube.MUC(
+        const muc = CoreCube.MUC(
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis qui male tactus est."),
@@ -696,7 +696,7 @@ describe('cube', () => {
         binaryData[4] = 42;  // not the right answer after all
 
         // Attempt to restore MUC
-        expect(() => new Cube(binaryData)).toThrow(CubeSignatureError);
+        expect(() => new CoreCube(binaryData)).toThrow(CubeSignatureError);
       })
 
       it("should present a MUC's key even if it's hash is not yet known", () => {
@@ -704,7 +704,7 @@ describe('cube', () => {
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-        const muc: Cube = Cube.MUC(
+        const muc: CoreCube = CoreCube.MUC(
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Signum meum nondum certum est, sed clavis mea semper eadem erit."),
@@ -719,7 +719,7 @@ describe('cube', () => {
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-        const muc: Cube = Cube.MUC(
+        const muc: CoreCube = CoreCube.MUC(
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Gratiose tibi dabo signum meum etiamsi non intersit tibi de mea data binaria."),

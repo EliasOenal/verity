@@ -1,4 +1,4 @@
-import { cciCube } from "../../../src/cci/cube/cciCube";
+import { Cube } from "../../../src/cci/cube/cube";
 import { CrpytographyError } from "../../../src/cci/helpers/cryptography";
 import { Identity } from "../../../src/cci/identity/identity";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
@@ -39,7 +39,7 @@ describe('Identity (key management)', () => {
       original = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       const compiledMuc: Buffer = await original.muc.getBinaryData();
-      const restoredMuc: cciCube = new cciCube(compiledMuc);
+      const restoredMuc: Cube = new Cube(compiledMuc);
       restored = new Identity(cubeStore, restoredMuc, idTestOptions);
     });
 

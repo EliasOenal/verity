@@ -1,5 +1,5 @@
-import type { CubeKey, GetCubeOptions, NotificationKey } from "./cube.definitions";
-import type { Cube } from "./cube";
+import type { CubeKey, GetCubeOptions, NotificationKey } from "./coreCube.definitions";
+import type { CoreCube } from "./coreCube";
 import type { CubeInfo } from "./cubeInfo";
 import type { CubeStore } from "./cubeStore";
 import type { Veritable } from "./veritable.definition";
@@ -13,7 +13,7 @@ import type { EventEmitter } from "events";
  */
 export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
-  getCube<cubeClass extends Cube>(key: CubeKey | string, options?: OptionsType): Promise<cubeClass>;
+  getCube<cubeClass extends CoreCube>(key: CubeKey | string, options?: OptionsType): Promise<cubeClass>;
   expectCube(keyInput: CubeKey | string): Promise<CubeInfo>; // maybe TODO: add timeout?
   getNotifications(recipientKey: NotificationKey | string, options?: {}): AsyncGenerator<Veritable>;
   cubeStore: CubeStore;
@@ -53,7 +53,7 @@ export type CubeIteratorOptionsSublevel = {
 
 export interface CubeEmitterEvents extends Record<string, any[]> {
   cubeAdded: [CubeInfo];
-  notificationAdded: [notificationKey: CubeKey, cube: Cube];
+  notificationAdded: [notificationKey: CubeKey, cube: CoreCube];
 }
 /**
  * CubeEmitter is a generelised interface for objects that can emit CubeInfos.

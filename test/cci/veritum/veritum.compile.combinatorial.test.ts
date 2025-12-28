@@ -1,9 +1,9 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { CubeKey, CubeType, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { enumNums } from "../../../src/core/helpers/misc";
 
-import { cciCube } from "../../../src/cci/cube/cciCube";
-import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { Cube } from "../../../src/cci/cube/cube";
+import { FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { VeritumFromChunksOptions } from "../../../src/cci/veritum/veritum.definitions";
 import { Veritum } from "../../../src/cci/veritum/veritum";
@@ -65,10 +65,10 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                 let veritum: Veritum;
                 let veritumKey: CubeKey;
                 let veritumFields: VerityField[];
-                let originalChunks: cciCube[];
+                let originalChunks: Cube[];
                 let reconstructed: Veritum;
                 let firstRestoreVeritum: Veritum;
-                let firstRestoreChunks: cciCube[];
+                let firstRestoreChunks: Cube[];
                 let firstRestoreBinaryData: Buffer[];
                 const notify = VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as NotificationKey);
 
@@ -128,7 +128,7 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                   // If specified, go low level by converting the chunks
                   // themselves to binary and back -- just as it would happen
                   // when a Veritum is sent over the wire.
-                  const chunksForRestore: cciCube[] = [];
+                  const chunksForRestore: Cube[] = [];
                   if (throughBinary) {
                     for (const chunk of veritum.chunks) {
                       // convert chunk to binary by fetching the
@@ -138,7 +138,7 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                       expect(bin.length).toBe(NetConstants.CUBE_SIZE);
 
                       // convert binary chunk back to Cube object
-                      const restoredChunk: cciCube = new cciCube(bin);
+                      const restoredChunk: Cube = new Cube(bin);
                       // sanity check restored chunk
                       expect((await chunk.getKey()).equals(await restoredChunk.getKey())).toBe(true);
                       // expect(restoredChunk.equals(chunk)).toBeTruthy();
@@ -201,7 +201,7 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                     // if this is a low-level test going through binary
                     // (as if the Veritum was sent over the wire),
                     // convert the chunks to binary and back
-                    const chunksForAnotherRestore: cciCube[] = [];
+                    const chunksForAnotherRestore: Cube[] = [];
                     if (throughBinary) {
                       for (const chunk of reconstructed.chunks) {
                         // convert chunk to binary by fetching the
@@ -211,7 +211,7 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                         expect(bin.length).toBe(NetConstants.CUBE_SIZE);
 
                         // convert binary chunk back to Cube object
-                        const restoredChunk: cciCube = new cciCube(bin);
+                        const restoredChunk: Cube = new Cube(bin);
                         // sanity check restored chunk
                         expect((await chunk.getKey()).equals(await restoredChunk.getKey())).toBe(true);
                         // expect(restoredChunk.equals(chunk)).toBeTruthy();
@@ -245,8 +245,8 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                     const recompiledChunks = Array.from(reconstructed.chunks);
                     for (let i=0; i<recompiledChunks.length; i++) {
                       // assert Chunk cube objects are not the same
-                      const recompiledChunk: cciCube = recompiledChunks[i];
-                      const previousChunk: cciCube = firstRestoreChunks[i];
+                      const recompiledChunk: Cube = recompiledChunks[i];
+                      const previousChunk: Cube = firstRestoreChunks[i];
                       expect(recompiledChunk === previousChunk).toBe(false);
 
                       // fetch previous and recompiled chunks' binary data
@@ -268,8 +268,8 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                     const recompiledChunks = Array.from(reconstructed.chunks);
                     for (let i=0; i<recompiledChunks.length; i++) {
                       // assert Chunk cube objects are not the same
-                      const recompiledChunk: cciCube = recompiledChunks[i];
-                      const previousChunk: cciCube = firstRestoreChunks[i];
+                      const recompiledChunk: Cube = recompiledChunks[i];
+                      const previousChunk: Cube = firstRestoreChunks[i];
 
                       expect(recompiledChunk.getKeyIfAvailable().length).toBe(NetConstants.CUBE_KEY_SIZE);
                       expect(previousChunk.getKeyIfAvailable().length).toBe(NetConstants.CUBE_KEY_SIZE);
@@ -284,8 +284,8 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                     const recompiledChunks = Array.from(reconstructed.chunks);
                     for (let i=0; i<recompiledChunks.length; i++) {
                       // assert Chunk cube objects are not the same
-                      const recompiledChunk: cciCube = recompiledChunks[i];
-                      const previousChunk: cciCube = firstRestoreChunks[i];
+                      const recompiledChunk: Cube = recompiledChunks[i];
+                      const previousChunk: Cube = firstRestoreChunks[i];
 
                       expect(recompiledChunk.getBinaryDataIfAvailable().length).toBe(NetConstants.CUBE_SIZE);
                       expect(previousChunk.getBinaryDataIfAvailable().length).toBe(NetConstants.CUBE_SIZE);
@@ -306,7 +306,7 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                     expect(fieldsAfter[i].equals(veritumFields[i])).toBeTruthy();
                   }
 
-                  const chunksAfter: cciCube[] = Array.from(veritum.chunks);
+                  const chunksAfter: Cube[] = Array.from(veritum.chunks);
                   expect(chunksAfter.length).toBe(originalChunks.length);
                   for (let i = 0; i < originalChunks.length; i++) {
                     // assert the original Veritum still retains the exact

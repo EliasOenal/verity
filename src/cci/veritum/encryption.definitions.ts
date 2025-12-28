@@ -1,7 +1,7 @@
 import type { VerityFields } from "../cube/verityFields";
 import type { Identity } from "../identity/identity";
 
-import { FieldType } from "../cube/cciCube.definitions";
+import { FieldType } from "../cube/cube.definitions";
 
 export type EncryptionRecipients = Identity|Iterable<Identity>|Buffer|Iterable<Buffer>;
 export interface CciEncryptionParams {

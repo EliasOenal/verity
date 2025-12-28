@@ -36,7 +36,7 @@ export class LevelBackend {
   readonly ready: Promise<void>;
   private db: any; // Level or MemoryLevel
 
-  // TODO low prio: Cube-specific stuff should be handled by CubeStore,
+  // TODO low prio: CoreCube-specific stuff should be handled by CubeStore,
   //      not the generalised LevelBackend
   private dbCubes: any;
   private dbNotifyIndexTime: any;

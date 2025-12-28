@@ -5,7 +5,7 @@ import { NetConstants } from '../networking/networkDefinitions';
 import type { Veritable } from './veritable.definition';
 
 import { FieldPosition, FieldsEqualOptions } from '../fields/baseFields';
-import { BinaryDataError, BinaryLengthError, CubeCreateOptions, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./cube.definitions";
+import { BinaryDataError, BinaryLengthError, CubeCreateOptions, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./coreCube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { asCubeKey } from './keyUtil';
@@ -226,7 +226,7 @@ export abstract class VeritableBaseImplementation implements Veritable {
     }
   }
 
-export class Cube extends VeritableBaseImplementation implements Veritable {
+export class CoreCube extends VeritableBaseImplementation implements Veritable {
     /**
      * Creates a new fully valid Cube of your chosen type.
      * @param type Which type of Cube would you like?
@@ -243,7 +243,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
      */
     static Create(
         options: CubeCreateOptions = {},
-    ): Cube {
+    ): CoreCube {
         options = Object.assign({}, options);  // copy options to avoid messing up original
         // normalise options:
         // Do not accept more than one family definition.
@@ -283,7 +283,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         if (HasSignature[options.cubeType]) {
             if (!options.publicKey || !options.privateKey ||
                 options.publicKey?.length !== NetConstants.PUBLIC_KEY_SIZE) {
-                throw new ApiMisuseError(`Cube.Create(): cannot create a ${CubeType[options.cubeType]} without a valid public/private key pair`);
+                throw new ApiMisuseError(`CoreCube.Create(): cannot create a ${CubeType[options.cubeType]} without a valid public/private key pair`);
             }
         }
 
@@ -307,7 +307,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         ) as CubeFields;
 
         // sculpt Cube
-        const cube: Cube = new options.family.cubeClass(options.cubeType, options);
+        const cube: CoreCube = new options.family.cubeClass(options.cubeType, options);
 
         // on signed types, supply private key
         if (HasSignature[options.cubeType]) cube.privateKey = options.privateKey as Buffer;
@@ -323,7 +323,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
      * If data contains a NOTIFY field, the resulting Cube will be a notify Cube.
      * @deprecated Use Create() directly please
      */
-    static Frozen(options: CubeCreateOptions = {}): Cube {
+    static Frozen(options: CubeCreateOptions = {}): CoreCube {
         options.cubeType = CubeType.FROZEN;
         return this.Create(options);
     }
@@ -339,7 +339,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
     static MUC(publicKey: Buffer,
                privateKey: Buffer,
                options: CubeCreateOptions = {},
-    ): Cube {
+    ): CoreCube {
         options.cubeType = CubeType.MUC;
         options.publicKey = publicKey;
         options.privateKey = privateKey;
@@ -351,7 +351,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
      * for data to be made available long-term.
      * @deprecated Use Create() directly please
      */
-    static PIC(options: CubeCreateOptions = {}): Cube {
+    static PIC(options: CubeCreateOptions = {}): CoreCube {
         options.cubeType = CubeType.PIC;
         return this.Create(options);
     }
@@ -390,7 +390,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
     /**
      * Sculpt a new bare Cube, starting out without any fields.
      * This is only useful if for some reason you need full control even over
-     * mandatory boilerplate fields. Consider using Cube.Frozen or Cube.MUC
+     * mandatory boilerplate fields. Consider using CoreCube.Frozen or CoreCube.MUC
      * instead, which will sculpt a fully valid frozen Cube or MUC, respectively.
      **/
     // Note: Usage of CubeCreateOptions here is not perfectly elegant,
@@ -400,15 +400,15 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         cubeType: CubeType,
         options?: CubeCreateOptions);
     /** Copy constructor: Copy an existing Cube */
-    constructor(copyFrom: Cube);
+    constructor(copyFrom: CoreCube);
     // Repeat implementation as declaration as calls must strictly match a
     // declaration, not the implementation (which is stupid)
-    constructor(param1: Buffer | CubeType | Cube, options?: CubeCreateOptions);
+    constructor(param1: Buffer | CubeType | CoreCube, options?: CubeCreateOptions);
     constructor(
-            param1: Buffer | CubeType | Cube,
+            param1: Buffer | CubeType | CoreCube,
             options?: CubeCreateOptions)
     {
-        if (param1 instanceof Cube) {
+        if (param1 instanceof CoreCube) {
             // copy constructor
             super(param1);  // superclass will take care of fields and stuff
             // copy binary data
@@ -538,7 +538,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
             // verify all fields together are less than 1024 bytes
             const totalLength = fields.getByteLength();
             if (totalLength > NetConstants.CUBE_SIZE) {
-                throw new FieldSizeError(`Cube.setFields(): Can't set fields with a total length of ${totalLength} as Cube size is ${NetConstants.CUBE_SIZE}`);
+                throw new FieldSizeError(`Cube.setFields(): Can't set fields with a total length of ${totalLength} as CoreCube size is ${NetConstants.CUBE_SIZE}`);
             }
             // verify there's a NONCE field
             if (!(fields.getFirst(CubeFieldType.NONCE))) {
@@ -837,6 +837,6 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
 // executed strictly after the Cube implementation.
 // You may get random uncaught ReferenceErrors otherwise.
 export const coreCubeFamily: CubeFamilyDefinition = {
-    cubeClass: Cube,
+    cubeClass: CoreCube,
     parsers: CoreFieldParsers,
 }

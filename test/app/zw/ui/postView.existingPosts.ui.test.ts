@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
-import { CubeKey } from '../../../../src/core/cube/cube.definitions';
+import { CubeKey } from '../../../../src/core/cube/coreCube.definitions';
 import { keyVariants } from '../../../../src/core/cube/keyUtil';
 
-import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../../src/cci/cube/cube.definitions';
 import { Identity } from '../../../../src/cci/identity/identity';
 
 import { PostController } from '../../../../src/app/zw/webui/post/postController';

@@ -1,6 +1,6 @@
 /**
  * Playwright utilities for real browser testing of Verity nodes
- * 
+ *
  * This module provides utilities to test Verity functionality in real browser environments
  * using Playwright, including IndexedDB, WebRTC, and full browser APIs.
  */
@@ -9,12 +9,13 @@ import { Page } from '@playwright/test';
 // Import library types actually exposed / used
 import type { VerityUI } from '../../src/webui/verityUI';
 import type { VerityNode } from '../../src/cci/verityNode';
-import type { CubeKey } from '../../src/core/cube/cube.definitions';
+import type { CubeKey } from '../../src/core/cube/coreCube.definitions';
 import type { Cockpit } from '../../src/cci/cockpit';
 import type { NetworkManagerIf } from '../../src/core/networking/networkManagerIf';
 import type { CubeStore } from '../../src/core/cube/cubeStore';
 import type { Peer } from '../../src/core/peering/peer';
 import type { WebSocketAddress } from '../../src/core/peering/addressing';
+import { Cube } from '../../src/cci/cube/cube';
 
 export interface NodeTestResult {
   success: boolean;
@@ -48,13 +49,13 @@ export async function stageTestCubeInBrowser(
   return await page.evaluate(async (c) => {
     try {
       const g: any = (window as any);
-      const cciCube = g.verity?.cciCube || g.cciCube;
+      const Cube = g.verity?.Cube || g.Cube;
       const VerityField = g.verity?.VerityField || g.VerityField || g.verityField;
-      if (!cciCube || !VerityField) {
-        return { success: false, error: 'cciCube or VerityField not exposed globally' };
+      if (!Cube || !VerityField) {
+        return { success: false, error: 'Cube or VerityField not exposed globally' };
       }
       const payload = `${c} :: ${Date.now()} :: ${Math.random()} :: ${(crypto as any)?.randomUUID?.() ?? Math.random()}`;
-      const cube = cciCube.Create({
+      const cube = Cube.Create({
         fields: [VerityField.Payload(payload)],
         requiredDifficulty: 0,
       });
@@ -113,17 +114,17 @@ export interface TestServerInfo {
 export async function initializeVerityInBrowser(page: Page, testApp: string = 'full-node-test.html'): Promise<void> {
   // Navigate to the specific Verity test application
   await page.goto(`/${testApp}`);
-  
+
   // Wait for the application to load
   await page.waitForSelector('body', { state: 'visible' });
-  
+
   // Wait for the Verity library to be available
   await page.waitForFunction(() => {
-    return typeof window !== 'undefined' && 
+    return typeof window !== 'undefined' &&
            window.verity !== undefined &&
            window.verity.node !== undefined;
   }, { timeout: 30000 });
-  
+
   // Apply test optimizations for faster execution (equivalent to testCoreOptions)
   await applyTestOptimizations(page);
 }
@@ -179,10 +180,10 @@ export async function createTestCubeInBrowser(
       const initialCount = await cubeStore.getNumberOfStoredCubes();
 
   // Access CCI constructors from global bundle (prefer namespaced exports)
-  const cciCube = (window as any).verity?.cciCube || (window as any).cciCube;
+  const Cube = (window as any).verity?.Cube || (window as any).Cube;
   const VerityField = (window as any).verity?.VerityField || (window as any).VerityField || (window as any).verityField;
-      if (!cciCube || !VerityField) {
-        return { success: false, error: 'cciCube or VerityField not exposed globally' };
+      if (!Cube || !VerityField) {
+        return { success: false, error: 'Cube or VerityField not exposed globally' };
       }
 
       // Generate unique payload (Nonce + Date fields will also add uniqueness)
@@ -191,13 +192,13 @@ export async function createTestCubeInBrowser(
       let cube: any;
       try {
         console.log('[createTestCubeInBrowser] Sculpting CCI cube');
-        cube = cciCube.Create({
+        cube = Cube.Create({
           fields: [VerityField.Payload(payload)],
           requiredDifficulty: 0,
         });
       } catch (e:any) {
-        console.error('[createTestCubeInBrowser] cciCube.Frozen failed', e?.message);
-        return { success: false, error: 'cciCube.Frozen failed: ' + e?.message };
+        console.error('[createTestCubeInBrowser] Cube.Frozen failed', e?.message);
+        return { success: false, error: 'Cube.Frozen failed: ' + e?.message };
       }
 
       // Compile explicitly to surface errors early
@@ -356,7 +357,7 @@ export async function getNodeInfo(page: Page): Promise<any> {
         onlinePeers: node.networkManager.onlinePeers.length,
         nodeType: node.constructor.name,
         isReady: !!node.readyPromise,
-        transports: node.networkManager.transports ? 
+        transports: node.networkManager.transports ?
           Array.from(node.networkManager.transports.keys()) : []
       };
     } catch (error) {
@@ -384,12 +385,12 @@ export async function shutdownBrowserNode(page: Page): Promise<void> {
  * Wait for multiple browser nodes to be ready
  */
 export async function waitForBrowserNodesReady(
-  pages: Page[], 
+  pages: Page[],
   timeoutMs: number = 30000
 ): Promise<boolean> {
   try {
     await Promise.all(
-      pages.map(p => 
+      pages.map(p =>
         p.waitForFunction(() => window.verity?.node !== undefined, { timeout: timeoutMs })
       )
     );
@@ -425,26 +426,26 @@ export async function checkNodeConnectivity(page: Page): Promise<{
  * Create multiple unique test cubes in a browser
  */
 export async function createMultipleCubes(
-  page: Page, 
+  page: Page,
   count: number
 ): Promise<CubeCreationResult[]> {
   const results: CubeCreationResult[] = [];
   const createdKeys: string[] = [];
-  
+
   for (let i = 0; i < count; i++) {
     // Create unique content including index, timestamp, and random values
     const uniqueId = `${Date.now()}-${Math.random()}-${i}`;
     const result = await createTestCubeInBrowser(page, `Test cube ${i} - ${uniqueId}`);
     results.push(result);
   if (result.cubeKey) createdKeys.push(result.cubeKey);
-    
+
     // Add more delay between cube creations to ensure uniqueness
     await page.waitForTimeout(150 + Math.random() * 100);
   }
   // Allow final stabilization for cubeStore indexing before counts are checked by tests
   await page.waitForTimeout(200);
   console.log('[createMultipleCubes] created', { count: results.length, createdKeys: createdKeys.map(k=>k.slice(0,16)+'...') });
-  
+
   return results;
 }
 
@@ -487,10 +488,10 @@ export async function connectBrowserNodeToServer(page: Page, serverAddress: stri
 /**
  * Get connection status of a browser node
  */
-export async function getBrowserNodeConnectionStatus(page: Page): Promise<{ 
-  nodeId: string; 
-  peerCount: number; 
-  onlinePeers: string[]; 
+export async function getBrowserNodeConnectionStatus(page: Page): Promise<{
+  nodeId: string;
+  peerCount: number;
+  onlinePeers: string[];
   isNetworkReady: boolean;
 }> {
   return await page.evaluate(async () => {
@@ -504,7 +505,7 @@ export async function getBrowserNodeConnectionStatus(page: Page): Promise<{
       };
     }
 
-    const onlinePeers = node.networkManager.onlinePeers.map(peer => 
+    const onlinePeers = node.networkManager.onlinePeers.map(peer =>
       peer.idString ? peer.idString.substring(0, 16) + '...' : 'unknown'
     );
 
@@ -520,30 +521,30 @@ export async function getBrowserNodeConnectionStatus(page: Page): Promise<{
 /**
  * Wait for a browser node to be network ready with retry logic
  */
-export async function waitForNetworkReady(page: Page, timeoutMs: number = 15000): Promise<{ 
-  nodeId: string; 
-  peerCount: number; 
-  onlinePeers: string[]; 
+export async function waitForNetworkReady(page: Page, timeoutMs: number = 15000): Promise<{
+  nodeId: string;
+  peerCount: number;
+  onlinePeers: string[];
   isNetworkReady: boolean;
 }> {
   const startTime = Date.now();
   let lastStatus = null;
-  
+
   while (Date.now() - startTime < timeoutMs) {
     const status = await getBrowserNodeConnectionStatus(page);
     lastStatus = status;
-    
+
     console.log(`waitForNetworkReady check: isReady=${status.isNetworkReady}, peers=${status.peerCount}, elapsed=${Date.now() - startTime}ms`);
-    
+
     if (status.isNetworkReady && status.peerCount > 0) {
       console.log(`Network ready achieved in ${Date.now() - startTime}ms`);
       return status;
     }
-    
+
     // Wait a bit before checking again
     await page.waitForTimeout(300);
   }
-  
+
   console.warn(`waitForNetworkReady timeout after ${timeoutMs}ms. Final status:`, lastStatus);
   // Return final status even if not ready (for debugging)
   return lastStatus || await getBrowserNodeConnectionStatus(page);

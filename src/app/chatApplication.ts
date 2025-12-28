@@ -1,11 +1,11 @@
 import { Buffer } from 'buffer';
-import { cciCube } from '../cci/cube/cciCube';
+import { Cube } from '../cci/cube/cube';
 import { VerityField } from '../cci/cube/verityField';
-import { FieldType } from '../cci/cube/cciCube.definitions';
-import { CubeType, NotificationKey } from '../core/cube/cube.definitions';
+import { FieldType } from '../cci/cube/cube.definitions';
+import { CubeType, NotificationKey } from '../core/cube/coreCube.definitions';
 import { CubeField } from '../core/cube/cubeField';
 import { logger } from '../core/logger';
-import { Cube } from '../core/cube/cube';
+import { CoreCube } from '../core/cube/coreCube';
 
 export class ChatApplication {
     private static readonly APPLICATION_IDENTIFIER = 'chat';
@@ -18,12 +18,12 @@ export class ChatApplication {
      * @returns A frozen notify cciCube containing the chat message.
      * @throws Error if the notification key is invalid.
      */
-    static async createChatCube(username: string, message: string, notificationKey: NotificationKey): Promise<cciCube> {
+    static async createChatCube(username: string, message: string, notificationKey: NotificationKey): Promise<Cube> {
         if (!Buffer.isBuffer(notificationKey) || notificationKey.length !== 32) {
             throw new Error('Invalid notification key: must be a 32-byte Buffer');
         }
 
-        const cube: Cube = cciCube.Frozen({
+        const cube: CoreCube = Cube.Frozen({
             fields: [
                 VerityField.Notify(notificationKey),
                 VerityField.Application(this.APPLICATION_IDENTIFIER),
@@ -32,7 +32,7 @@ export class ChatApplication {
             ],
         });
 
-        return cube as cciCube;
+        return cube as Cube;
     }
 
     /**
@@ -41,7 +41,7 @@ export class ChatApplication {
      * @returns An object containing the username, message, and notification key.
      * @throws Error if the cube is not a valid chat cube or if required fields are missing.
      */
-    static parseChatCube(cube: cciCube): { username: string, message: string, notificationKey: Buffer } {
+    static parseChatCube(cube: Cube): { username: string, message: string, notificationKey: Buffer } {
         if (cube.cubeType !== CubeType.FROZEN_NOTIFY) {
             throw new Error('Chat application requires frozen notify cubes, passed cube is: ' + cube.cubeType);
         }
