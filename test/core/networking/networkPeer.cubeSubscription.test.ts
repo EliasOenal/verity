@@ -1,4 +1,4 @@
-import { KeyPair } from "../../../src/cci/helpers/cryptography";
+import { KeyPair } from '../../../src/core/cube/coreCube.definitions';
 import { CoreCube } from "../../../src/core/cube/coreCube";
 import { CubeKey, CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";

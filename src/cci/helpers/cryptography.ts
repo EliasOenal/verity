@@ -1,12 +1,8 @@
 import { VerityError } from '../../core/settings';
+import { KeyPair } from '../../core/cube/coreCube.definitions';
 
 import { Buffer } from 'buffer'
 import sodium from 'libsodium-wrappers-sumo'
-
-export interface KeyPair {
-  privateKey: Buffer;
-  publicKey: Buffer;
-}
 
 /** !!! May only be called after awaiting sodium.ready !!! */
 export function deriveSigningKeypair(

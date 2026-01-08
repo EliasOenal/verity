@@ -5,7 +5,7 @@ import { VerityField } from '../../../src/cci/cube/verityField';
 import { FieldType, MediaTypes } from '../../../src/cci/cube/cube.definitions';
 import { CryptStateOutput } from '../../../src/cci/veritum/encryption.definitions';
 import { Encrypt } from '../../../src/cci/veritum/chunkEncryption';
-import { KeyPair } from '../../../src/cci/helpers/cryptography';
+import { KeyPair } from '../../../src/core/cube/coreCube.definitions';
 
 import { Decrypt } from '../../../src/cci/veritum/chunkDecryption';
 import { ApiMisuseError } from '../../../src/core/settings';

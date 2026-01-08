@@ -17,7 +17,8 @@ import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeKey, CubeType } from '../../core/cube/coreCube.definitions';
 
 import { FieldLength, FieldType } from '../cube/cube.definitions';
-import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
+import { KeyMismatchError, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
+import { KeyPair } from '../../core/cube/coreCube.definitions';
 import { VerityField } from '../cube/verityField';
 import { VerityFields, cciPmucFieldDefinition, cciPmucParser } from '../cube/verityFields';
 import { Relationship, RelationshipType } from '../cube/relationship';
