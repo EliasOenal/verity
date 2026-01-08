@@ -1,6 +1,6 @@
 {
   "name": "@veritycloud/verity",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "A decentralised, serverless and censorship-resistant Cloud application platform",
   "type": "module",
   "private": true,
