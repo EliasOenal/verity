@@ -1,7 +1,7 @@
 import { Cube } from "../../../src/cci/cube/cube";
 import { FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { KeyPair } from "../../../src/cci/helpers/cryptography";
+import { KeyPair } from '../../../src/core/cube/coreCube.definitions';
 import { Decrypt } from "../../../src/cci/veritum/chunkDecryption";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { ContinuationDefaultExclusions } from "../../../src/cci/veritum/veritum.definitions";
