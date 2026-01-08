@@ -87,14 +87,14 @@ export class Cockpit implements VeritumRetrievalInterface {
   /**
    * Publish an existing Veritum.
    **/
-  publishVeritum(veritum: Veritum, options?: PublishVeritumOptions): Promise<Veritum>;
+  publishVeritum(veritum: Veritable, options?: PublishVeritumOptions): Promise<Veritum>;
   /**
    * Create and publish a new Veritum.
    */
   publishVeritum(options: PublishVeritumOptions): Promise<Veritum>;
 
   // maybe TODO: Ensure Cubes have actually been synced to the network?
-  publishVeritum(param1: Veritum|PublishVeritumOptions, param2: PublishVeritumOptions = {}): Promise<Veritum> {
+  publishVeritum(param1: Veritable|PublishVeritumOptions, param2: PublishVeritumOptions = {}): Promise<Veritum> {
     let veritum: Veritum;
     let options: PublishVeritumOptions;
     if (param1 instanceof Veritum) {
