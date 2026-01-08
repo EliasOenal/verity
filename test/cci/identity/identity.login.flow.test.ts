@@ -1,10 +1,8 @@
-import { Cockpit, VerityField, VerityNode } from "../../../src";
-import { makePost } from "../../../src/app/zw/model/zwUtil";
-import { Cube } from "../../../src/cci/cube/cube";
-import { CrpytographyError } from "../../../src/cci/helpers/cryptography";
+import { Cockpit } from "../../../src/cci/cockpit";
+import { VerityField } from "../../../src/cci/cube/verityField";
 import { Identity } from "../../../src/cci/identity/identity";
 import { IdentityOptions } from "../../../src/cci/identity/identity.definitions";
-import { CubeStore } from "../../../src/core/cube/cubeStore";
+import { VerityNode } from "../../../src/cci/verityNode";
 
 import { testCubeStoreParams, idTestOptions, testCciOptions } from "../testcci.definitions";
 

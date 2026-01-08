@@ -1,3 +1,4 @@
+import type { CubeKey } from "../../../src/core/cube/coreCube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import { FieldType } from "../../../src/cci/cube/cube.definitions";
@@ -7,7 +8,6 @@ import { VerityFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../.
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { CubeKey } from "../../../src";
 
 describe('VerityFields', () => {
   describe('constructor', () => {
