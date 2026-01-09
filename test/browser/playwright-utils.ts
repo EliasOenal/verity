@@ -10,12 +10,10 @@ import { Page } from '@playwright/test';
 import type { VerityUI } from '../../src/webui/verityUI';
 import type { VerityNode } from '../../src/cci/verityNode';
 import type { CubeKey } from '../../src/core/cube/coreCube.definitions';
-import type { Cockpit } from '../../src/cci/cockpit';
 import type { NetworkManagerIf } from '../../src/core/networking/networkManagerIf';
 import type { CubeStore } from '../../src/core/cube/cubeStore';
 import type { Peer } from '../../src/core/peering/peer';
 import type { WebSocketAddress } from '../../src/core/peering/addressing';
-import { Cube } from '../../src/cci/cube/cube';
 
 export interface NodeTestResult {
   success: boolean;
