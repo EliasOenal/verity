@@ -12,7 +12,10 @@ export const commonConfig = {
         use: {
           loader: 'ts-loader',
           options: {
-            configFile: 'tsconfig.build.json'
+            configFile: 'tsconfig.json',
+            compilerOptions: {
+              noEmit: false,
+            }
           },
         },
         exclude: /node_modules/,
