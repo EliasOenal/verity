@@ -2,10 +2,10 @@ import { VerityError } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
-import { CubeKey } from '../../../src/core/cube/cube.definitions';
+import { CubeKey } from '../../../src/core/cube/coreCube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { cciCube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity'
 import { IdentityStore } from '../../../src/cci/identity/identityStore';
@@ -275,7 +275,7 @@ describe('Identity: base model tests', () => {
         id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45) as CubeKey);
 
         // compile to MUC
-        const muc: cciCube = await id.marshall();
+        const muc: Cube = await id.marshall();
         expect(id.muc).toBe(muc);
 
         // verify information
@@ -294,7 +294,7 @@ describe('Identity: base model tests', () => {
 
       it('will parse an Identity MUC on construction but ignore any references to other Cubes', async() => {
         // note that the previous test is required before running this one!
-        expect(id.muc).toBeInstanceOf(cciCube);
+        expect(id.muc).toBeInstanceOf(Cube);
 
         // restore an Identity from the MUC without providing a CubeStore reference
         const restored: Identity = new Identity(

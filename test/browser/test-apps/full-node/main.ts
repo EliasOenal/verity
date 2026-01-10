@@ -1,6 +1,6 @@
 /**
  * Full Node Test Application
- * 
+ *
  * This is a minimal web application for testing full Verity node functionality.
  * It uses the real Verity library with testCoreOptions for fast testing.
  */
@@ -10,7 +10,7 @@ import sodium from 'libsodium-wrappers-sumo';
 import { VerityNode } from '../../../../src/cci/verityNode';
 import { Cockpit } from '../../../../src/cci/cockpit';
 import { VerityField } from '../../../../src/cci/cube/verityField';
-import { cciCube } from '../../../../src/cci/cube/cciCube';
+import { Cube } from '../../../../src/cci/cube/cube';
 import { testCoreOptions } from '../../../core/testcore.definition';
 import { testCciOptions } from '../../../cci/testcci.definitions';
 import { Peer } from '../../../../src/core/peering/peer';
@@ -25,7 +25,7 @@ async function initializeFullNodeTest(): Promise<void> {
   }
 
   console.log('Initializing full node test application with real Verity library');
-  
+
   // Wait for libsodium to be ready
   await sodium.ready;
 
@@ -54,7 +54,7 @@ async function initializeFullNodeTest(): Promise<void> {
       cubeStore: verityNode.cubeStore,
       cockpit: cockpit,  // Add cockpit for cube creation
       VerityField: VerityField,  // Export VerityField for Playwright tests
-      cciCube: cciCube, // Expose cciCube for direct CCI cube creation tests
+      cciCube: Cube, // Expose Cube class for direct CCI cube creation tests
       Peer: Peer,  // Export Peer class for connections
       WebSocketAddress: WebSocketAddress,  // Export WebSocketAddress class for connections
       testUtils: {
@@ -67,7 +67,7 @@ async function initializeFullNodeTest(): Promise<void> {
             nodeId: `full-node-${Date.now()}-${Math.random().toString(36).substring(2)}`
           };
         },
-        
+
         getNodeInfo: () => {
           return {
             type: 'full-node',
@@ -82,31 +82,31 @@ async function initializeFullNodeTest(): Promise<void> {
           if (!verityNode || !cockpit) {
             throw new Error('VerityNode or Cockpit not initialized');
           }
-          
+
           try {
             const testContent = content || `TEST-CUBE-${Date.now()}-${Math.random()}`;
-            
+
             // Create a veritum using the cockpit with proper payload field
             const payloadField = VerityField.Payload(testContent);
             const veritum = cockpit.prepareVeritum({
               fields: payloadField
             });
-            
+
             // Compile the veritum
             await veritum.compile();
-            
+
             // Get the cubes
             const cubes = Array.from(veritum.chunks);
             if (cubes.length === 0) {
               return { success: false, error: 'No cubes generated from veritum' };
             }
-            
+
             const cube = cubes[0];
             const key = await cube.getKey();
-            
+
             // Add to store
             await verityNode.cubeStore.addCube(cube);
-            
+
             return {
               success: true,
               content: testContent,
@@ -127,11 +127,11 @@ async function initializeFullNodeTest(): Promise<void> {
     // Update UI
     const statusEl = document.getElementById('status');
     const nodeInfoEl = document.getElementById('nodeInfo');
-    
+
     if (statusEl) {
       statusEl.textContent = 'Full node test ready!';
     }
-    
+
     if (nodeInfoEl) {
       nodeInfoEl.innerHTML = `
         <h3>Full Node Test Information</h3>
@@ -146,10 +146,10 @@ async function initializeFullNodeTest(): Promise<void> {
     }
 
     console.log('Full node test application ready');
-    
+
   } catch (error) {
     console.error('Failed to initialize VerityNode:', error);
-    
+
     const statusEl = document.getElementById('status');
     if (statusEl) {
       statusEl.textContent = `Error: ${(error as Error).message}`;
@@ -166,11 +166,11 @@ if (isBrowser) {
       if (statusEl) {
         statusEl.textContent = 'Initializing full node test...';
       }
-      
+
       await initializeFullNodeTest();
     } catch (error) {
       console.error('Failed to initialize full node test:', error);
-      
+
       const statusEl = document.getElementById('status');
       if (statusEl) {
         statusEl.textContent = `Error: ${(error as Error).message}`;

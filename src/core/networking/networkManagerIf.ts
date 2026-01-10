@@ -5,7 +5,7 @@ import type { Peer } from '../peering/peer';
 import type { PeerDB } from '../peering/peerDB';
 import type { SupportedTransports } from './networkDefinitions';
 import type { NetworkStats, NetworkPeerIf, NetworkPeerOptions } from './networkPeerIf';
-import type { CubeKey } from '../cube/cube.definitions';
+import type { CubeKey } from '../cube/coreCube.definitions';
 import type { CubeInfo } from '../cube/cubeInfo';
 
 import type { EventEmitter } from 'events';

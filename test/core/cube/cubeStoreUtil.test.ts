@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getNotificationDateKey, getNotificationDifficultyKey } from '../../../src/core/cube/cubeStoreUtil';
-import { Cube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 import { CubeField } from '../../../src/core/cube/cubeField';
-import { CubeType, NotificationKey, CubeKey, CubeFieldType } from '../../../src/core/cube/cube.definitions';
+import { CubeType, NotificationKey, CubeKey, CubeFieldType } from '../../../src/core/cube/coreCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 describe('getNotificationDateKey()', () => {
@@ -14,7 +14,7 @@ describe('getNotificationDateKey()', () => {
   describe('Cube as parameter', () => {
     describe('happy path', () => {
       it('should generate the correct key from a valid Cube object', async () => {
-          const cube = Cube.Create({
+          const cube = CoreCube.Create({
               cubeType: CubeType.FROZEN_NOTIFY,
               fields: [
                   CubeField.Notify(recipientKey),
@@ -33,7 +33,7 @@ describe('getNotificationDateKey()', () => {
 
     describe('error handling', () => {
       it('should return undefined for a Cube without a NOTIFY field', async () => {
-        const cube = Cube.Create({
+        const cube = CoreCube.Create({
             cubeType: CubeType.FROZEN,
             fields: [
                 CubeField.Date(timestamp),
@@ -102,7 +102,7 @@ describe('getNotificationDifficultyKey()', () => {
   describe('Cube as parameter', () => {
     describe('happy path', () => {
       it('should generate the correct key from a valid Cube object', async () => {
-          const cube = Cube.Create({
+          const cube = CoreCube.Create({
               cubeType: CubeType.FROZEN_NOTIFY,
               fields: [
                   CubeField.Notify(recipientKey),
@@ -122,7 +122,7 @@ describe('getNotificationDifficultyKey()', () => {
 
     describe('error handling', () => {
       it('should return undefined for a Cube without a NOTIFY field', async () => {
-        const cube = Cube.Create({
+        const cube = CoreCube.Create({
             cubeType: CubeType.FROZEN,
             requiredDifficulty: 0
         });

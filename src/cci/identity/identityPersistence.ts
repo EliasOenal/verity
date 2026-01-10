@@ -1,8 +1,8 @@
-import type { CubeKey } from '../../core/cube/cube.definitions';
+import type { CubeKey } from '../../core/cube/coreCube.definitions';
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import type { IdentityOptions } from './identity.definitions';
 
-import { ensureCci } from '../cube/cciCubeUtil';
+import { ensureCci } from '../cube/cubeUtil';
 import { Identity } from './identity';
 
 import { logger } from '../../core/logger';

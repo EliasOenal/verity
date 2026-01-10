@@ -9,9 +9,9 @@ import type { NavItem } from './navigation/navigationDefinitions';
 
 import { SupportedTransports } from '../core/networking/networkDefinitions';
 import { defaultInitialPeers } from '../core/coreNode';
-import { coreCubeFamily } from '../core/cube/cube';
+import { coreCubeFamily } from '../core/cube/coreCube';
 
-import { cciFamily } from '../cci/cube/cciCube';
+import { cciFamily } from '../cci/cube/cube';
 import { VerityNode, VerityNodeOptions } from '../cci/verityNode';
 import { Cockpit } from '../cci/cockpit';
 
@@ -46,7 +46,7 @@ export interface VerityOptions extends VerityNodeOptions, VerityUiOptions, Ident
    * @default true
    **/
   startupAnimation?: boolean;
-  
+
   /**
    * Whether to disable identity features completely
    * @default false
@@ -135,8 +135,8 @@ export class VerityUI implements ControllerContext {
     return ui;
   }
 
-  get identity(): Identity { 
-    return this.identityController.identity; 
+  get identity(): Identity {
+    return this.identityController.identity;
   }
 
   readonly nav: NavigationController = new NavigationController(this);
@@ -157,14 +157,14 @@ export class VerityUI implements ControllerContext {
     // first, as they're part of the mandatory controller context.
     this.cockpit = new Cockpit(this.node,
       { identity: () => this.identityController?.identity ?? undefined });
-    
+
     // Use NoOpIdentityController if identity features are disabled
     if (options.disableIdentity) {
       this.identityController = new NoOpIdentityController(this) as any;
     } else {
       this.identityController = new IdentityController(this, options);
     }
-    
+
     this.peerController = new PeerController(this);
   }
 

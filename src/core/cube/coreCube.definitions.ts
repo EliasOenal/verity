@@ -263,13 +263,16 @@ export interface GetCubeOptions {
   family?: CubeFamilyDefinition | CubeFamilyDefinition[];
 }
 
-export interface CubeCreateOptions extends GetCubeOptions {
+export interface KeyPair {
+  privateKey: Buffer;
+  publicKey: Buffer;
+}
+
+export interface CubeCreateOptions extends GetCubeOptions, Partial<KeyPair> {
   cubeType?: CubeType;
   fields?: CubeFields | CubeField[] | CubeField;
   family?: CubeFamilyDefinition;
   requiredDifficulty?: number;
-  publicKey?: Buffer;
-  privateKey?: Buffer;
 }
 
 

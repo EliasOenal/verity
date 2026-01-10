@@ -1,7 +1,7 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition, CorePmucFieldDefinition } from "../../../src/core/cube/cubeFields";
-import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeType } from "../../../src/core/cube/coreCube.definitions";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { FieldEqualityMetric } from "../../../src/core/fields/baseFields";

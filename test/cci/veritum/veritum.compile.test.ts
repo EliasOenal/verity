@@ -1,9 +1,9 @@
-import { cciCube } from "../../../src/cci/cube/cciCube";
-import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { Cube } from "../../../src/cci/cube/cube";
+import { MediaTypes, FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Recombine } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
-import { CubeType, CubeKey, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CubeType, CubeKey, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import { evenLonger, tooLong } from "../testcci.definitions";
@@ -51,9 +51,9 @@ describe('Veritum compilation/decompilation tests', () => {
           fields: payloadField,
           requiredDifficulty,
         });
-        const cubesIterable: Iterable<cciCube> = await veritum.compile();
+        const cubesIterable: Iterable<Cube> = await veritum.compile();
         expect(cubesIterable).toEqual(veritum.chunks);
-        const compiled: cciCube[] = Array.from(cubesIterable);
+        const compiled: Cube[] = Array.from(cubesIterable);
         expect(compiled.length).toBe(1);
         expect(compiled[0].cubeType).toBe(CubeType.FROZEN);
         expect(compiled[0].getFirstField(FieldType.PAYLOAD).equals(payloadField)).toBeTruthy();
@@ -70,7 +70,7 @@ describe('Veritum compilation/decompilation tests', () => {
         });
         await veritum.compile();
 
-        const chunks: cciCube[] = Array.from(veritum.chunks);
+        const chunks: Cube[] = Array.from(veritum.chunks);
         expect(chunks.length).toBe(3);
 
         expect(chunks[0].cubeType).toBe(CubeType.PIC_NOTIFY);
@@ -128,7 +128,7 @@ describe('Veritum compilation/decompilation tests', () => {
 
         // Compile it all the way down to binary.
         await singleCube.compile();
-        const singleChunk: cciCube = Array.from(singleCube.chunks)[0];
+        const singleChunk: Cube = Array.from(singleCube.chunks)[0];
         const singleCubeBin: Buffer = singleChunk.getBinaryDataIfAvailable();
         // Compilation should make both the Veritum and the chunk know their key.
         const key: CubeKey = singleCube.getKeyIfAvailable();
@@ -136,7 +136,7 @@ describe('Veritum compilation/decompilation tests', () => {
         expect(singleChunk.getKeyIfAvailable().equals(key)).toBe(true);
 
         // Restore the binary chunk
-        const restoredChunk: cciCube = new cciCube(singleCubeBin);
+        const restoredChunk: Cube = new Cube(singleCubeBin);
         expect(restoredChunk.cubeType).toBe(CubeType.PIC);
         expect(restoredChunk.getFirstField(FieldType.PAYLOAD).valueString).toEqual(short);
         expect(restoredChunk.getFirstField(FieldType.DATE)).toBeDefined();
@@ -166,7 +166,7 @@ describe('Veritum compilation/decompilation tests', () => {
 
         // Compile it all the way down to binary
         await veritum.compile();
-        const chunks: cciCube[] = Array.from(veritum.chunks);
+        const chunks: Cube[] = Array.from(veritum.chunks);
         expect(chunks.length).toBe(3);
         const binaryChunks: Buffer[] =
           chunks.map(chunk => chunk.getBinaryDataIfAvailable());
@@ -181,7 +181,7 @@ describe('Veritum compilation/decompilation tests', () => {
         expect(chunks[2].getKeyIfAvailable().equals(key)).toBe(false);
 
         // restore the binary chunks
-        const restoredChunks: cciCube[] = binaryChunks.map(chunk => new cciCube(chunk));
+        const restoredChunks: Cube[] = binaryChunks.map(chunk => new Cube(chunk));
         expect(restoredChunks.length).toBe(3);
         for (const chunk of restoredChunks) {
           expect(chunk.cubeType).toBe(CubeType.PIC);

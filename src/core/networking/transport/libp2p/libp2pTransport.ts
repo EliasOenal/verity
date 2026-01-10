@@ -1,8 +1,5 @@
 import type { NetworkManagerOptions } from '../../networkManagerIf';
 
-// Add Promise.withResolvers polyfill for Node.js 20 compatibility
-import 'promise.withresolvers/auto';
-
 import { Settings, VerityError } from "../../../settings";
 import { Libp2pServer } from "./libp2pServer";
 import { NetworkTransport } from "../networkTransport";

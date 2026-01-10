@@ -1,12 +1,12 @@
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { CubeError, CubeKey, CubeType, NonNotifyCubeType, NotifyCubeType } from "../../core/cube/cube.definitions";
-import { Cube } from "../../core/cube/cube";
+import { CubeError, CubeKey, CubeType, NonNotifyCubeType, NotifyCubeType } from "../../core/cube/coreCube.definitions";
+import { CoreCube } from "../../core/cube/coreCube";
 import { FieldParser } from "../../core/fields/fieldParser";
 
-import { cciCube } from "../cube/cciCube";
-import { FieldType } from "../cube/cciCube.definitions";
+import { Cube } from "../cube/cube";
+import { FieldType } from "../cube/cube.definitions";
 import { VerityField } from "../cube/verityField";
 import { VerityFields } from "../cube/verityFields";
 import { Relationship, RelationshipType } from "../cube/relationship";
@@ -47,7 +47,7 @@ const DefaultMapFieldToChunk: Map<number, number> = new Map([
 export async function Split(
   veritum: Veritable,
   options?: SplitOptions,
-): Promise<cciCube[]> {
+): Promise<Cube[]> {
   const splitter = new Splitter(veritum, options);
   splitter.preProcess();
   splitter.split();
@@ -81,8 +81,8 @@ class Splitter {
 
   // splitting related members
   private chunkIndex = -1;
-  readonly cubes: cciCube[] = [];
-  private demoChunk: Cube;
+  readonly cubes: Cube[] = [];
+  private demoChunk: CoreCube;
 
   /**
    * A list of "empty" CONTINUED_IN references created by split(),
@@ -316,7 +316,7 @@ class Splitter {
    * It's called at the very beginning of the splitting process, and whenever
    * we've filled up the previous chunk.
    */
-  private sculptNextChunk(): cciCube {
+  private sculptNextChunk(): Cube {
     // First, update the running number
     this.chunkIndex++;
 
@@ -347,7 +347,7 @@ class Splitter {
       ...this.options,
       cubeType: cubeType,
       fields: mappedFields,
-    }) as cciCube;
+    }) as Cube;
     this.cubes.push(cube);
     return cube;
   }
@@ -412,7 +412,7 @@ class Splitter {
 
 
 export function Recombine(
-  chunks: Iterable<cciCube>,
+  chunks: Iterable<Cube>,
   options: RecombineOptions = {},
 ): Veritum {
   // set default options
@@ -424,7 +424,7 @@ export function Recombine(
   // Normalise input chunks to Array
   // maybe TODO optimise: avoid this?
   chunks = Array.from(chunks);
-  if ((chunks as cciCube[]).length === 0) return undefined;
+  if ((chunks as Cube[]).length === 0) return undefined;
 
   // prepare variables
   let cubeType: CubeType;
@@ -490,7 +490,7 @@ export function Recombine(
       // from the first chunk
       if (targetIndex === -1) targetIndex = 0;
       // fetch mapped field
-      const chunk: cciCube = chunks[targetIndex];
+      const chunk: Cube = chunks[targetIndex];
       if (!chunk) {
         logger.warn(`Recombine(): I was asked to map a ${FieldType[fieldType]} field from chunk ${targetIndex} to the restored Veritum, but this chunk does not exist; skipping this field.`);
         continue;
@@ -518,7 +518,7 @@ export function Recombine(
     //  by a factor of 3 (decrypted fields, encrypted fields, raw encrypted binary blob) --
     //  not retaining the chunks will basically yield an uncompiled Veritum,
     //  which as it's in uncompiled state may not know its key
-    chunks: chunks as cciCube[],
+    chunks: chunks as Cube[],
 
     publicKey: chunks?.[0]?.publicKey,  // only relevant for signed types, undefined otherwise
   });

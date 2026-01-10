@@ -1,8 +1,8 @@
-import { cciCube } from "../../../src/cci/cube/cciCube";
-import { FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { Cube } from "../../../src/cci/cube/cube";
+import { FieldLength, FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/verityFields";
-import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
@@ -28,7 +28,7 @@ describe('cciCube', () => {
 
   describe('setFields()', () => {
     it('should set and get fields correctly', () => {
-      const cube = new cciCube(CubeType.FROZEN);
+      const cube = new Cube(CubeType.FROZEN);
       const fields = new VerityFields([
         VerityField.Type(CubeType.FROZEN),
         VerityField.Payload("Ero celeber Cubus cum compilatus fuero."),
@@ -46,7 +46,7 @@ describe('cciCube', () => {
       // everything is fixed size anyway and will throw way before setFields()
       // if sizes don't match.
       // TODO: Move to CCI tests
-      const cube = new cciCube(CubeType.FROZEN);
+      const cube = new Cube(CubeType.FROZEN);
       const fields = new VerityFields([
         VerityField.Type(CubeType.FROZEN),
         new VerityField(FieldType.PAYLOAD, Buffer.alloc(8020)),
@@ -62,7 +62,7 @@ describe('cciCube', () => {
     // writiting of this comment the padUp() method was still implemented in Core.
     it('Should not add padding if not required', async() => {
       // Create a Cube with fields whose total length is equal to the cube size
-      const cube = cciCube.Frozen({
+      const cube = Cube.Frozen({
         fields: VerityField.Payload("His cubus plenus est"),
         requiredDifficulty: reducedDifficulty,
       });
@@ -85,7 +85,7 @@ describe('cciCube', () => {
       // Create a Cube with fields whose total length is equal to the cube size
       const payload = VerityField.Payload(
         "Hic cubus nimis parvus, ideo supplendus est.");
-      const cube = cciCube.Frozen({
+      const cube = Cube.Frozen({
         fields: payload, requiredDifficulty: reducedDifficulty});
 
       const fieldCountBeforePadding = cube.fieldCount;
@@ -106,7 +106,7 @@ describe('cciCube', () => {
     });
 
     it('should remove extra padding if necessary', async() => {
-      const overlyPadded: cciCube = cciCube.Frozen({
+      const overlyPadded: Cube = Cube.Frozen({
         requiredDifficulty: reducedDifficulty,
         fields: [
           VerityField.Payload("Hic cubus nimis multum impluvium continet."),
@@ -138,7 +138,7 @@ describe('cciCube', () => {
             VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, randomNotifyNumber) as NotificationKey));
 
           // sculpt Cube
-          const cube: cciCube = cciCube.Create({
+          const cube: Cube = Cube.Create({
             cubeType: type,
             fields: incompleteFieldset,
             requiredDifficulty: reducedDifficulty,
@@ -175,7 +175,7 @@ describe('cciCube', () => {
           }
 
           // decompile the Cube and check if the content is still the same
-          const recontructed: cciCube = new cciCube(binaryData);
+          const recontructed: Cube = new Cube(binaryData);
           expect(recontructed.cubeType).toBe(type);
           expect(recontructed.getFirstField(FieldType.PAYLOAD).valueString).
             toEqual(contentString);
