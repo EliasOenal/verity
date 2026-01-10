@@ -8,7 +8,7 @@ import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
 
 export class WebSocketConnection extends TransportConnection {
-  private static WEBSOCKET_HANDSHAKE_TIMEOUT = 2500;
+  private static WEBSOCKET_HANDSHAKE_TIMEOUT = 10000;
   private _ws: WebSocket;  // The WebSocket connection associated with this peer
   get ws(): WebSocket { return this._ws }
 
