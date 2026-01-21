@@ -79,7 +79,7 @@
     "buffer": "^6.0.3",
     "cmd-ts": "^0.14.2",
     "data-structure-typed": "^2.1.0",
-    "dompurify": "^3.2.7",
+    "dompurify": "^3.3.0",
     "events": "^3.3.0",
     "extensionless": "^2.0.2",
     "isomorphic-ws": "^5.0.0",
