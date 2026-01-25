@@ -1,12 +1,8 @@
 import { VerityError } from '../../core/settings';
+import { KeyPair } from '../../core/cube/coreCube.definitions';
 
 import { Buffer } from 'buffer'
 import sodium from 'libsodium-wrappers-sumo'
-
-export interface KeyPair {
-  privateKey: Buffer;
-  publicKey: Buffer;
-}
 
 /** Prepare a KDF context string exactly sodium.crypto_kdf_CONTEXTBYTES long.
  *  This replicates the previous libsodium-wrappers behaviour:
