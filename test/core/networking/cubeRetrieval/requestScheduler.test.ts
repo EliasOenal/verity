@@ -13,10 +13,10 @@ import { CubeRequest } from "../../../../src/core/networking/cubeRetrieval/pendi
 import { DummyNetworkManager } from "../../../../src/core/networking/testingDummies/dummyNetworkManager";
 import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies/dummyNetworkPeer';
 
-import { Cube } from "../../../../src/core/cube/cube";
+import { CoreCube } from "../../../../src/core/cube/coreCube";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 import { CubeField } from "../../../../src/core/cube/cubeField";
-import { CubeFieldType, CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/coreCube.definitions";
 import { CubeStore } from "../../../../src/core/cube/cubeStore";
 import { asNotificationKey } from "../../../../src/core/cube/keyUtil";
 
@@ -316,7 +316,7 @@ describe('RequestScheduler', () => {
         // simulate successful network retrieval by delivering a matching notification Cube
         const contentField: CubeField =
           CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis");
-        const notification = Cube.Frozen({
+        const notification = CoreCube.Frozen({
           fields: [
             contentField,
             CubeField.Notify(asNotificationKey(testKey)),
@@ -406,7 +406,7 @@ describe('RequestScheduler', () => {
 
         // sculpt a test Cube
         const date = 148302000;
-        const oldCube: Cube = Cube.Frozen({
+        const oldCube: CoreCube = CoreCube.Frozen({
           fields: [
             CubeField.RawContent(CubeType.FROZEN, "Viva Malta Repubblika!"),
             CubeField.Date(date),
@@ -434,7 +434,7 @@ describe('RequestScheduler', () => {
         cubeStore.options.enableCubeRetentionPolicy = true;
 
         // sculpt a test Cube
-        const testCube: Cube = Cube.Frozen({
+        const testCube: CoreCube = CoreCube.Frozen({
           fields: [
             CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
           ],
@@ -466,7 +466,7 @@ describe('RequestScheduler', () => {
       it('should request cubes that win the cube contest', async () => {
         // sculpt test Cubes:
         // an old one already in store...
-        const oldCube: Cube = Cube.PIC({
+        const oldCube: CoreCube = CoreCube.PIC({
           fields: [
             CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
             CubeField.Date(unixtime() - 315360000),  // sculpted ten years ago
@@ -475,7 +475,7 @@ describe('RequestScheduler', () => {
         });
         await cubeStore.addCube(oldCube);
         // ... and a new one that will be offered to us
-        const newCube: Cube = Cube.PIC({
+        const newCube: CoreCube = CoreCube.PIC({
           fields: [
             CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
             CubeField.Date(unixtime()),  // sculpted right now
@@ -506,7 +506,7 @@ describe('RequestScheduler', () => {
       it('should not request cubes that lose the cube contest', async () => {
         // sculpt test Cubes:
         // a new one already in store...
-        const newCube: Cube = Cube.PIC({
+        const newCube: CoreCube = CoreCube.PIC({
           fields: [
             CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
             CubeField.Date(unixtime()),  // sculpted right now
@@ -515,7 +515,7 @@ describe('RequestScheduler', () => {
         });
         await cubeStore.addCube(newCube);
         // ... and an older one that will be offered to us
-        const oldCube: Cube = Cube.PIC({
+        const oldCube: CoreCube = CoreCube.PIC({
           fields: [
             CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
             CubeField.Date(unixtime() - 315360000),  // sculpted ten years
@@ -541,14 +541,14 @@ describe('RequestScheduler', () => {
     describe('handleCubesDelivered', () => {
       it('will accept multiple requested Cubes at once', async () => {
         // prepare two Cubes
-        const cube1: Cube = Cube.Create({
+        const cube1: CoreCube = CoreCube.Create({
           fields: CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
           requiredDifficulty,
         });
         const cube1Bin: Buffer = await cube1.getBinaryData();
         const cube1Key: CubeKey = await cube1.getKey();
 
-        const cube2: Cube = Cube.Create({
+        const cube2: CoreCube = CoreCube.Create({
           fields: CubeField.RawContent(CubeType.FROZEN, "Alius cubus sum"),
           requiredDifficulty,
         });
@@ -573,10 +573,10 @@ describe('RequestScheduler', () => {
 });
 
 
-function testCube(): Cube {
+function testCube(): CoreCube {
   const contentField: CubeField =
     CubeField.RawContent(CubeType.FROZEN, "Cubus sum");
-  const cube = Cube.Frozen({
+  const cube = CoreCube.Frozen({
     fields: contentField,
     requiredDifficulty,
   });

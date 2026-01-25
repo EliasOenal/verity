@@ -1,5 +1,5 @@
-import { Cube } from "../../../src/core/cube/cube";
-import { CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
+import { CubeType, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { asNotificationKey } from "../../../src/core/cube/keyUtil";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
@@ -94,7 +94,7 @@ describe('NetworkPeer notification request tests', () => {
     it('should return a key response quoting a single key if there is a single notification cube available', async () => {
       // add a notification cube to the store
       const notificationKey = randomNotificationKey();
-      const notification = Cube.Create({
+      const notification = CoreCube.Create({
         cubeType: CubeType.PIC_NOTIFY,
         fields: [
           CubeField.Notify(notificationKey),
@@ -141,7 +141,7 @@ describe('NetworkPeer notification request tests', () => {
     it('should return a key response quoting multiple keys if there are multiple notification cubes available', async () => {
       // add three notification cubes to the store
       const notificationKey = randomNotificationKey();
-      const notification = Cube.Create({
+      const notification = CoreCube.Create({
         cubeType: CubeType.PIC_NOTIFY,
         fields: [
           CubeField.Notify(notificationKey),
@@ -151,7 +151,7 @@ describe('NetworkPeer notification request tests', () => {
       });
       await cubeStore.addCube(notification);
 
-      const notification2 = Cube.Create({
+      const notification2 = CoreCube.Create({
         cubeType: CubeType.PIC_NOTIFY,
         fields: [
           CubeField.Notify(notificationKey),
@@ -161,7 +161,7 @@ describe('NetworkPeer notification request tests', () => {
       });
       await cubeStore.addCube(notification2);
 
-      const notification3 = Cube.Create({
+      const notification3 = CoreCube.Create({
         cubeType: CubeType.PIC_NOTIFY,
         fields: [
           CubeField.Notify(notificationKey),
@@ -173,7 +173,7 @@ describe('NetworkPeer notification request tests', () => {
 
       // verify test setup:
       // - we have three notifications to this key in store
-      const notifications: Cube[] = await ArrayFromAsync(
+      const notifications: CoreCube[] = await ArrayFromAsync(
         cubeStore.getNotifications(notificationKey));
       expect(notifications).toHaveLength(3);
 
@@ -222,7 +222,7 @@ describe('NetworkPeer notification request tests', () => {
         beforeAll(async () => {
           // add a notification cube to the all-zero notification key
           const zeroKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 0x00) as NotificationKey;
-          const zeroNotification = Cube.Create({
+          const zeroNotification = CoreCube.Create({
             cubeType: CubeType.PIC_NOTIFY,
             fields: [
               CubeField.Notify(zeroKey),
@@ -266,7 +266,7 @@ describe('NetworkPeer notification request tests', () => {
 
         it('will still return a single-key KeyResponse if there are notifications to the zero key present in addition to the requested one', async () => {
           const notificationKey = randomNotificationKey();
-          const notification = Cube.Create({
+          const notification = CoreCube.Create({
             cubeType: CubeType.PIC_NOTIFY,
             fields: [
               CubeField.Notify(notificationKey),

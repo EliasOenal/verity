@@ -1,4 +1,4 @@
-import { NotificationKey } from "../../../../src";
+import { NotificationKey } from "../../../../src/core/cube/coreCube.definitions";
 import { CubeStore } from "../../../../src/core/cube/cubeStore";
 import { CubeSubscription } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
 import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";

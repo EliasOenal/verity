@@ -1,7 +1,7 @@
 import { logger } from "../logger";
 import { NetConstants } from "../networking/networkDefinitions";
 import { Settings } from "../settings";
-import { CubeKey, NotificationKey } from "./cube.definitions";
+import { CubeKey, NotificationKey } from "./coreCube.definitions";
 
 import { Buffer } from 'buffer';
 

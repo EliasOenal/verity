@@ -4,11 +4,11 @@
 //  setup to help identify whether a bug originates on the VeritumRetriever (CCI)
 //  or CubeRetriever (core) level.
 
-import { CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../../src/core/cube/cube.definitions';
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../../src/core/cube/coreCube.definitions';
 import { CubeField } from '../../../../src/core/cube/cubeField';
 import { NetConstants } from '../../../../src/core/networking/networkDefinitions';
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
-import { Cube } from '../../../../src/core/cube/cube';
+import { CoreCube } from '../../../../src/core/cube/coreCube';
 import { CubeRetriever } from '../../../../src/core/networking/cubeRetrieval/cubeRetriever';
 import { CubeStore } from '../../../../src/core/cube/cubeStore';
 import { RequestScheduler } from '../../../../src/core/networking/cubeRetrieval/requestScheduler';
@@ -69,7 +69,7 @@ describe('CubeRetriever', () => {
         const recipientKey: NotificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as NotificationKey;
 
         const firstLatin = "Magni momenti nuntiatio";
-        const first: Cube = Cube.Create({
+        const first: CoreCube = CoreCube.Create({
           cubeType: CubeType.PIC_NOTIFY,
           fields: [
             CubeField.RawContent(CubeType.PIC_NOTIFY, firstLatin),
@@ -83,7 +83,7 @@ describe('CubeRetriever', () => {
         expect(firstBin.length).toBe(NetConstants.CUBE_SIZE);
 
         const secondLatin = "Haud minus magni momenti nuntiatio";
-        const second: Cube = Cube.Create({
+        const second: CoreCube = CoreCube.Create({
           cubeType: CubeType.PIC_NOTIFY,
           fields: [
             CubeField.RawContent(CubeType.PIC_NOTIFY, secondLatin),
@@ -99,7 +99,7 @@ describe('CubeRetriever', () => {
 
         // Run test --
         // note we don't await the result just yet
-        const retrievalPromise: Promise<Cube[]> = ArrayFromAsync(
+        const retrievalPromise: Promise<CoreCube[]> = ArrayFromAsync(
           retriever.getNotifications(recipientKey));
 
         // wait a moment to simulate network latency
@@ -113,12 +113,12 @@ describe('CubeRetriever', () => {
         expect(await cubeStore.hasCube(second.getKeyIfAvailable())).toBe(true);
 
         // All chunks have "arrived", so the retrieval promise should resolve
-        const res: Cube[] = await retrievalPromise;
+        const res: CoreCube[] = await retrievalPromise;
 
         // Verify result
         expect(res.length).toBe(2);
-        expect(res[0] instanceof Cube).toBe(true);
-        expect(res[1] instanceof Cube).toBe(true);
+        expect(res[0] instanceof CoreCube).toBe(true);
+        expect(res[1] instanceof CoreCube).toBe(true);
         expect(res.some(cube =>
           cube.getFirstField(CubeFieldType.PIC_NOTIFY_RAWCONTENT).valueString.includes(firstLatin))).
           toBe(true);

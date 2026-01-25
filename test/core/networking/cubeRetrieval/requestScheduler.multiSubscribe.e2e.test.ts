@@ -1,11 +1,11 @@
 import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
 import type { CubeSubscription } from '../../../../src/core/networking/cubeRetrieval/pendingRequest';
 
-import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
-import { FieldType } from "../../../../src/cci/cube/cciCube.definitions";
+import { cciFamily, Cube } from "../../../../src/cci/cube/cube";
+import { FieldType } from "../../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../../src/cci/cube/verityField";
-import { CubeKey } from "../../../../src/core/cube/cube.definitions";
-import { Cube } from "../../../../src/core/cube/cube";
+import { CubeKey } from "../../../../src/core/cube/coreCube.definitions";
+import { CoreCube } from "../../../../src/core/cube/coreCube";
 import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
 import { keyVariants } from '../../../../src/core/cube/keyUtil';
 import { CubeInfo } from '../../../../src/core/cube/cubeInfo';
@@ -82,7 +82,7 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
       remote1.start(),
       remote2.start(),
     ]);
-    
+
     // Connect local to both remotes
     const np1: NetworkPeerIf = local.connect(new Peer(new WebSocketAddress("localhost", 18302)));
     const np2: NetworkPeerIf = local.connect(new Peer(new WebSocketAddress("localhost", 18303)));
@@ -101,7 +101,7 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
 
     // Create a test MUC on both remote nodes
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: Cube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,
@@ -115,7 +115,7 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
     await remote1.cubeStore.addCube(muc);
     await remote2.cubeStore.addCube(muc);
     const mucKey: CubeKey = await muc.getKey();
-    
+
     // Verify initial state
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(0);
     expect(await remote1.cubeStore.getNumberOfStoredCubes()).toBe(1);
@@ -124,22 +124,22 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
     // Subscribe to the MUC (first request to get initial cube)
     await local.scheduler.requestCube(mucKey);
     const subPromise: Promise<CubeSubscription> = local.scheduler.subscribeCube(mucKey);
-    
+
     // Wait for subscription to complete
     const subscription = await subPromise;
-    
+
     // Verify subscription is established
     expect(local.scheduler.cubeAlreadySubscribed(mucKey)).toBe(true);
     expect(subscription).toBeDefined();
     expect(subscription.subscribedPeers).toBeDefined();
-    
+
     // Verify we subscribed to multiple peers
     expect(subscription.subscribedPeers.length).toBe(2);
-    
+
     // Verify both remotes registered the subscription
     expect(remote1.incomingPeers[0].cubeSubscriptions).toContain(keyVariants(mucKey).keyString);
     expect(remote2.incomingPeers[0].cubeSubscriptions).toContain(keyVariants(mucKey).keyString);
-    
+
     // Update MUC on remote1
     muc.getFirstField(FieldType.PAYLOAD).value = Buffer.from("updated by remote1", 'ascii');
     muc.setDate(1715704520);
@@ -171,7 +171,7 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
 
     // Create a test MUC only on remote1 (remote2 won't have it)
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: Cube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,
@@ -185,7 +185,7 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
     await remote1.cubeStore.addCube(muc);
     // Note: NOT adding to remote2
     const mucKey: CubeKey = await muc.getKey();
-    
+
     // Verify initial state
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(0);
     expect(await remote1.cubeStore.getNumberOfStoredCubes()).toBe(1);
@@ -195,18 +195,18 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
     // First request the cube since it's only available on remote1
     await local.scheduler.requestCube(mucKey);
     const subPromise: Promise<CubeSubscription> = local.scheduler.subscribeCube(mucKey);
-    
+
     // Wait for subscription to complete
     const subscription = await subPromise;
-    
+
     // Verify subscription is established despite one node not having the cube
     expect(local.scheduler.cubeAlreadySubscribed(mucKey)).toBe(true);
     expect(subscription).toBeDefined();
     expect(subscription.subscribedPeers).toBeDefined();
-    
+
     // Should have at least one successful subscription
     expect(subscription.subscribedPeers.length).toBeGreaterThanOrEqual(1);
-    
+
     // Verify at least remote1 registered the subscription
     expect(remote1.incomingPeers[0].cubeSubscriptions).toContain(keyVariants(mucKey).keyString);
   });

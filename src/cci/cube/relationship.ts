@@ -1,15 +1,15 @@
 import { NetConstants } from "../../core/networking/networkDefinitions";
-import { CubeKey } from "../../core/cube/cube.definitions";
+import { CubeKey } from "../../core/cube/coreCube.definitions";
 import { asCubeKey } from "../../core/cube/keyUtil";
 
-import { FieldType } from "./cciCube.definitions";
+import { FieldType } from "./cube.definitions";
 import { VerityField } from "./verityField";
 
 import { logger } from "../../core/logger";
 
 export enum RelationshipType {
   CONTINUED_IN = 1,
-  // unused = 2,
+  INTERPRETS = 2,
   REPLY_TO = 3,
   QUOTATION = 4,
   MYPOST = 5,
@@ -17,7 +17,7 @@ export enum RelationshipType {
   AUTHORHINT = 7,
 
   REPLACED_BY = 11,
-  // INTERPRETS = 12,  // commented out as it's not currently defined in the docs
+  REPLACES = 12,
 
   ILLUSTRATION = 71,
   KEY_BACKUP_CUBE = 72,

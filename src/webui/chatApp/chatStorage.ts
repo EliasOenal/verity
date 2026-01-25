@@ -1,7 +1,7 @@
 import { LevelBackend, LevelBackendOptions, Sublevels } from "../../core/cube/levelBackend";
 import { logger } from "../../core/logger";
 import { Buffer } from "buffer";
-import { NotificationKey } from "../../core/cube/cube.definitions";
+import { NotificationKey } from "../../core/cube/coreCube.definitions";
 
 export interface StoredChatRoom {
     id: string;
@@ -24,7 +24,7 @@ export class ChatStorage {
             dbVersion: 1,
             inMemoryLevelDB: false
         };
-        
+
         this.backend = new LevelBackend(options);
         this.ready = this.backend.ready;
     }

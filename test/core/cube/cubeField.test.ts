@@ -1,5 +1,5 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
