@@ -53,7 +53,7 @@ export type CubeIteratorOptionsSublevel = {
 
 export interface CubeEmitterEvents extends Record<string, any[]> {
   cubeAdded: [CubeInfo];
-  notificationAdded: [notificationKey: CubeKey, cube: CoreCube];
+  notificationAdded: [notificationKey: NotificationKey, cube: CoreCube];
 }
 /**
  * CubeEmitter is a generelised interface for objects that can emit CubeInfos.
