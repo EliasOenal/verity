@@ -912,7 +912,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     // together for potential further forwarding at the receiving node.
     // NOTE: must use arrow syntax to have this event handler pre-bound;
     //  otherwise, event subscription will not properly cancel on close
-    private sendNotificationUpdate: (notificationKey: CubeKey, cube: CoreCube) => void = (notificationKey, cube) => {
+    private sendNotificationUpdate: (notificationKey: NotificationKey, cube: CoreCube) => void = (notificationKey, cube) => {
         if (this._notificationSubscriptions.has(keyVariants(notificationKey).keyString)) {
             // For notification updates, we need to create a CubeInfo from the cube
             // Since this is triggered by the notificationAdded event, we should be able to get the CubeInfo

@@ -676,7 +676,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     // There may not be a need to await this.
     await this.leveldb.store(Sublevels.INDEX_TIME, dateIndexKey, Buffer.alloc(0));
     await this.leveldb.store(Sublevels.INDEX_DIFF, difficultyIndexKey, Buffer.alloc(0));
-    this.emit('notificationAdded', recipient, cube);
+    this.emit('notificationAdded', asNotificationKey(recipient), cube);
   }
 
   private async deleteNotification(cubeInfo: CubeInfo): Promise<void> {
