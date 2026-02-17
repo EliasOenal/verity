@@ -25,8 +25,8 @@ import { Buffer } from 'buffer';
  */
 // Note: Cannot be moved to separate file as it uses coreCubeFamily as a default
 //       param, moving it would cause a circular dependency.
-export abstract class VeritableBaseImplementation implements Veritable {
-    protected _fields!: CubeFields;
+export abstract class VeritableBaseImplementation<F extends CubeFields = CubeFields> implements Veritable {
+    protected _fields!: F;
     readonly options!: CubeCreateOptions;
 
 
@@ -39,8 +39,8 @@ export abstract class VeritableBaseImplementation implements Veritable {
             // copy options object
             if (param1.options) this.options = {...param1.options};
             // copy-construct fields
-            const fieldsType = (param1._fields.constructor) as typeof CubeFields;
-            this._fields = new fieldsType(param1._fields);
+            const FieldsCtor = param1._fields.constructor as new ( fields: F ) => F;
+            this._fields = new FieldsCtor(param1._fields as F);
         } else {
             // construction from scratch
             this.options = { ...param1 };
@@ -58,7 +58,7 @@ export abstract class VeritableBaseImplementation implements Veritable {
             this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
 
             // initialise members
-            this._fields = this.normalizeFields(this.options.fields);
+            this._fields = this.normaliseFields(this.options.fields);
 
             // ensure Cube type is of a notification variant if there is a
             // NOTIFY field
@@ -218,11 +218,11 @@ export abstract class VeritableBaseImplementation implements Veritable {
         return this._fields;
     }
 
-    protected normalizeFields(
+    protected normaliseFields(
             fields: CubeField | CubeField[] | CubeFields | undefined,
-    ): CubeFields {
-        return CubeFields.NormalizeFields(
-            fields, this.fieldParser.fieldDef) as CubeFields;
+    ): F {
+        return CubeFields.NormaliseFields(
+            fields, this.fieldParser.fieldDef) as F;
     }
   }
 
