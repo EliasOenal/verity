@@ -5,6 +5,7 @@ import { Libp2pServer } from "./libp2pServer";
 import { NetworkTransport } from "../networkTransport";
 import { AddressAbstraction } from "../../../peering/addressing";
 import { logger } from "../../../logger";
+import sodium from 'libsodium-wrappers-sumo';
 
 import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
@@ -81,6 +82,14 @@ export class Libp2pTransport extends NetworkTransport {
   }
 
   async start(): Promise<void> {
+    // Ensure libsodium is initialized before starting libp2p to prevent
+    // race conditions in crypto handshakes
+    try {
+      await sodium.ready;
+    } catch (error) {
+      logger.warn(`libp2pTransport: Failed to initialize libsodium: ${error}, continuing anyway`);
+    }
+
     // Pre-create libp2p components:
     let transports = [];
     // Single WebSockets transport; enable HTTPS if any /wss listener is configured
