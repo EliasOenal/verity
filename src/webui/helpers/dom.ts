@@ -26,6 +26,13 @@ export function disableForm(form: HTMLElement) {
   setAttributeForAll(form, "button", "disabled", "true");
 }
 
+export function enableForm(form: HTMLElement) {
+  setAttributeForAll(form, "input", "disabled", undefined);
+  setAttributeForAll(form, "textarea", "disabled", undefined);
+  setAttributeForAll(form, "select", "disabled", undefined);
+  setAttributeForAll(form, "button", "disabled", undefined);
+}
+
 
 function isDocumentDefined(): boolean {
   if (typeof document === 'undefined') {
