@@ -1,9 +1,13 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["test"],
   "compilerOptions": {
     "noEmit": false,
-    "target": "ES2020",
-    "useDefineForClassFields": false
-  }
+    "declaration": false,
+    "declarationDir": null,
+    "emitDeclarationOnly": false,
+    "outDir": "./distwebpack"
+  },
+  "include": [
+    "src/**/*"
+  ]
 }

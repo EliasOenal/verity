@@ -8,12 +8,6 @@ mkdir fakedist
 cd fakedist
 ln ../package.json .
 ln -s ../src/* .
-rm webui
-mkdir webui
-cd webui
-ln -s ../../src/webui/* .
-ln -s ../../src/webui/static/* .
-cd .. # back to fakedist
 ln ../webpack.base.mjs .
 ln ../webpack.veritycommon.mjs .
 ln -s ../img .
