@@ -31,7 +31,7 @@ import { GetVeritumOptions, VeritumRetrievalInterface } from '../veritum/veritum
 import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../veritum/veritumRetrievalUtil';
 
 import { DEFAULT_IDMUC_APPLICATION_STRING, DEFAULT_IDMUC_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX, DEFAULT_MIN_MUC_REBUILD_DELAY, DEFAULT_SUBSCRIPTION_RECURSION_DEPTH, GetPostsGenerator, GetPostsOptions, GetRecursiveEmitterOptions, IdentityEvents, IdentityLoadOptions, IdentityOptions, IDMUC_MASTERINDEX, PostFormatEventMap, PostInfo, RecursiveRelResolvingGetPostsGenerator, RelResolvingGetPostsGenerator } from './identity.definitions';
-import { deriveIdentityMasterKey, deriveIdentityRootCubeKeypair, validateIdentityRoot } from './identityUtil';
+import { deriveIdentityMasterKey, deriveIdentityRootCubeKeypair, validateIdentityRoot } from './identityHelpers';
 import { IdentityPersistence } from './identityPersistence';
 import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 import { IdentityStore } from './identityStore';

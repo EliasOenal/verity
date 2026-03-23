@@ -1,3 +1,14 @@
+/**
+ * This is IdentityHelpers, a loose collection of functions related to
+ * low-level Identity stuff.
+ * Note there is two Identity-related function collections:
+ *   - IdentityHelpers for low-level stuff. The important bit here is that these
+ *     helpers may be used by Identity itself; IdentityHelpers should never
+ *     import Identity to avoid circular dependencies.
+ *   - IdentityUtil for high-level stuff, usually function which itself import
+ *     Identity.
+ */
+
 import type { CubeInfo } from "../../core/cube/cubeInfo";
 
 import { CubeType } from "../../core/cube/coreCube.definitions";
@@ -7,7 +18,7 @@ import { KeyPair } from '../../core/cube/coreCube.definitions';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
-
+import { Veritable } from "../../core/cube/veritable.definition";
 
 /** This function may only be called after awaiting sodium.ready. */
 export function deriveIdentityRootCubeKeypair(masterKey: Buffer, options?: IdentityOptions): KeyPair {
@@ -58,4 +69,3 @@ export function validateIdentityRoot(mucInfo: CubeInfo): boolean {
   // } catch (error) { return false; }
   return true;  // all checks passed
 }
-
