@@ -2,14 +2,14 @@ import { RecursiveEmitter } from '../../../src/core/helpers/recursiveEmitter';
 import { IdentityOptions, PostInfo } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
-import { Veritable } from '../../../src/core/cube/veritable.definition';
+import { CoreVeritable } from '../../../src/core/cube/coreVeritable.definition';
 import { TestWordPostSet, TestWorld } from '../../app/zw/testWorld';
 import { testCubeStoreParams } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-function hasPost(list: PostInfo<Veritable>[], post: Veritable, author?: Identity): boolean {
+function hasPost(list: PostInfo<CoreVeritable>[], post:CoreVeritable, author?: Identity): boolean {
   if (list.some(item => (
     item.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable() &&
     (author? item.author.keyString === author.keyString : true)
@@ -43,11 +43,11 @@ describe('Identity: emitting postAdded / postAddedCube events', () => {
   for (const eventName of ['postAdded', 'postAddedCube']) describe(`event ${eventName}`, () => {
     for (const lvl of [0, 1, 2, 3, 1337]) describe(`recursion level ${lvl} correctness`, () => {
       let w: TestWorld;
-      let posts: PostInfo<Veritable>[];  // note Veritable comprises both Veritum and Cube
+      let posts: PostInfo<CoreVeritable>[];  // note Veritable comprises both Veritum and Cube
       let emitter: RecursiveEmitter;
 
-      const handler: (postInfo: PostInfo<Veritable>) => void =
-        (postInfo: PostInfo<Veritable>) => posts.push(postInfo);
+      const handler: (postInfo: PostInfo<CoreVeritable>) => void =
+        (postInfo: PostInfo<CoreVeritable>) => posts.push(postInfo);
 
       beforeAll(async () => {
         // prepare test data

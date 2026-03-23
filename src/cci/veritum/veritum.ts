@@ -1,6 +1,6 @@
-import type { Veritable } from "../../core/cube/veritable.definition";
+import type { CoreVeritable } from "../../core/cube/coreVeritable.definition";
 
-import { VeritableBaseImplementation } from "../../core/cube/coreCube";
+import { CoreVeritableBaseImplementation } from "../../core/cube/coreCube";
 import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/coreCube.definitions";
 import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
 
@@ -21,7 +21,7 @@ import { VeritumCreateOptions, VeritumFromChunksOptions, VeritumCompileOptions }
 //   to allow semantic comparisons between Verita as well as between Verita
 //   and Cubes.
 
-export class Veritum extends VeritableBaseImplementation implements Veritable{
+export class Veritum extends CoreVeritableBaseImplementation implements CoreVeritable {
   private _chunks: Cube[];
   get chunks(): Iterable<Cube> { return this._chunks }
 

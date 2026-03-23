@@ -1,5 +1,5 @@
 import { keyVariants } from "../../core/cube/keyUtil";
-import { Veritable } from "../../core/cube/veritable.definition";
+import { CoreVeritable } from "../../core/cube/coreVeritable.definition";
 import { logger } from "../../core/logger";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
@@ -44,7 +44,7 @@ export class ChunkEncryptionHelper {
   private keySlotsPerChunk: number;
 
   constructor(
-      veritable: Veritable,
+      veritable: CoreVeritable,
       readonly options: VeritumCompileOptions,  // TODO veritable should be able to incorporate options
   ){
     // First, let's find out if the user did even request encryption
@@ -185,7 +185,7 @@ export class ChunkEncryptionHelper {
    * of space available for payload per chunk.
    * Must be called after planEncryptionScheme().
    */
-  private planChunks(veritable: Veritable): void {
+  private planChunks(veritable: CoreVeritable): void {
     // First, figure out how much space we have in our key distribution
     // chunk versus how much space we need.
     // TODO plan multiple first chunks if need be

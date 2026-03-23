@@ -18,7 +18,7 @@ import { KeyPair } from '../../core/cube/coreCube.definitions';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
-import { Veritable } from "../../core/cube/veritable.definition";
+import { CoreVeritable } from "../../core/cube/coreVeritable.definition";
 
 /** This function may only be called after awaiting sodium.ready. */
 export function deriveIdentityRootCubeKeypair(masterKey: Buffer, options?: IdentityOptions): KeyPair {

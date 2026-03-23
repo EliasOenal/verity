@@ -6,7 +6,7 @@ import { explorePostGenerator, isPostDisplayable, wotPostGenerator } from '../..
 import { PostInfo, RecursiveRelResolvingPostInfo } from '../../../../src/cci/identity/identity.definitions';
 import { CoreCube } from '../../../../src/core/cube/coreCube';
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
-import { Veritable } from '../../../../src/core/cube/veritable.definition';
+import { CoreVeritable } from '../../../../src/core/cube/coreVeritable.definition';
 import { IdentityStore } from '../../../../src/cci/identity/identityStore';
 
 describe('post generators', () => {
@@ -82,18 +82,18 @@ describe('post generators', () => {
     });
   });
 
-  async function shouldDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
+  async function shouldDisplay(post:CoreVeritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
     const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
     expect(postInfo).toBeDefined();
     expect(await isPostDisplayable(postInfo!)).toBe(true);
   }
 
-  function shouldNotGenerate(post: Veritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
+  function shouldNotGenerate(post:CoreVeritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
     const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
     expect(postInfo).toBeUndefined();
   }
 
-  async function shouldGenerateButNotDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
+  async function shouldGenerateButNotDisplay(post:CoreVeritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
     const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
     expect(postInfo).toBeDefined();
     expect(await isPostDisplayable(postInfo!)).toBe(false);

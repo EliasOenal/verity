@@ -8,7 +8,7 @@ import { eventsToGenerator, mergeAsyncGenerators, resolveAndYield } from '../../
 import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
 import { logger } from '../../core/logger';
 
-import { Veritable } from '../../core/cube/veritable.definition';
+import { CoreVeritable } from '../../core/cube/coreVeritable.definition';
 import { CoreCube } from '../../core/cube/coreCube';
 import { asCubeKey, KeyVariants, keyVariants } from '../../core/cube/keyUtil';
 import { CubeStore } from '../../core/cube/cubeStore';
@@ -693,9 +693,9 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           transform = (postInfo: PostInfo<any>) => {
             const ret = resolveRels(
               postInfo.main,
-              retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<Veritable>,
+              retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<CoreVeritable>,
               { ...options },
-            ) as ResolveRelsResult & PostInfo<Veritable>;
+            ) as ResolveRelsResult & PostInfo<CoreVeritable>;
             // Merge native PostInfo data (i.e. authorship) back in
             ret.author = postInfo.author;
             return ret;
@@ -705,9 +705,9 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           transform = (postInfo: PostInfo<any>) => {
             const ret = resolveRelsRecursive(
               postInfo.main,
-              retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<Veritable>,
+              retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<CoreVeritable>,
               { ...options },
-            ) as ResolveRelsRecursiveResult & PostInfo<Veritable>;
+            ) as ResolveRelsRecursiveResult & PostInfo<CoreVeritable>;
             // Merge native PostInfo data (i.e. authorship) back in
             ret.author = postInfo.author;
             return ret;

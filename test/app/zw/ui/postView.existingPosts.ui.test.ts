@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Veritable } from '../../../../src/core/cube/veritable.definition';
+import { CoreVeritable } from '../../../../src/core/cube/coreVeritable.definition';
 import { CubeKey } from '../../../../src/core/cube/coreCube.definitions';
 import { keyVariants } from '../../../../src/core/cube/keyUtil';
 
@@ -179,7 +179,7 @@ interface ExpectDisplayedOptions {
   author?: Identity;
   replyto?: CubeKey|string;
 }
-function expectDisplayed(post: Veritable, options: ExpectDisplayedOptions = {}) {
+function expectDisplayed(post:CoreVeritable, options: ExpectDisplayedOptions = {}) {
   // first, do we need to check if this is a reply?
   // if it's a reply, it should be nested under the original post
   let containing: HTMLElement;
@@ -206,7 +206,7 @@ function expectDisplayed(post: Veritable, options: ExpectDisplayedOptions = {}) 
   if (options.author) expect(authorField.textContent).toBe(options.author.name);
 }
 
-function expectNotDisplayed(post: Veritable) {
+function expectNotDisplayed(post: CoreVeritable) {
   // fetch post li
   const postLi: HTMLElement = document.querySelector(`.verityPost[data-cubekey="${post.getKeyStringIfAvailable()}"]`)!;
   expect(postLi).toBe(null);

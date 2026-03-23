@@ -1,6 +1,6 @@
 import { ArrayFromAsync, enumNums } from '../../../src/core/helpers/misc';
 import { CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
-import { Veritable } from '../../../src/core/cube/veritable.definition';
+import { CoreVeritable } from '../../../src/core/cube/coreVeritable.definition';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
@@ -320,9 +320,9 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
   });  // verify test setup
 
   for (const format of enumNums(RetrievalFormat)) for (const metadata of [true, false]) describe(`retrieval as ${RetrievalFormat[format]} ${metadata? 'wrapped in a PostInfo' : '(post only, i.e. no PostInfo)'}`, () => {
-    let posts: Veritable[];  // note that Veritable covers both Veritum and Cube
-    let postInfos: Array<PostInfo<Veritable>>;
-    let gen: GetPostsGenerator<Veritable|PostInfo<Veritable>>;
+    let posts: CoreVeritable[];  // note that Veritable covers both Veritum and Cube
+    let postInfos: Array<PostInfo<CoreVeritable>>;
+    let gen: GetPostsGenerator<CoreVeritable|PostInfo<CoreVeritable>>;
     beforeAll(async () => {
       // run test
       gen = id.getPosts({
@@ -331,11 +331,11 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
         resolveRels: metadata ? 'recursive' : false,  // when getting PostInfos also test rel resolution
       });
       if (!metadata) {
-        posts = await ArrayFromAsync(gen) as Veritable[];
+        posts = await ArrayFromAsync(gen) as CoreVeritable[];
         postInfos = [];
       } else {
-        postInfos = await ArrayFromAsync(gen) as Array<PostInfo<Veritable>>;
-        posts = postInfos.map(postInfo => (postInfo as PostInfo<Veritable>).main);
+        postInfos = await ArrayFromAsync(gen) as Array<PostInfo<CoreVeritable>>;
+        posts = postInfos.map(postInfo => (postInfo as PostInfo<CoreVeritable>).main);
       }
     });
 
@@ -352,7 +352,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single frozen Cube', () => {
-      const singleFrozenRestored: Veritable = posts.find(
+      const singleFrozenRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozen.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singleFrozenRestored).toBeInstanceOf(Veritum);
       if (format === RetrievalFormat.Cube) expect(singleFrozenRestored).toBeInstanceOf(Cube);
@@ -360,7 +360,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single frozen Cube with notification', () => {
-      const singleFrozenNotifyRestored: Veritable = posts.find(
+      const singleFrozenNotifyRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenNotify.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singleFrozenNotifyRestored).toBeInstanceOf(Veritum);
       if (format === RetrievalFormat.Cube) expect(singleFrozenNotifyRestored).toBeInstanceOf(Cube);
@@ -368,7 +368,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single PIC', async() => {
-      let singlePicRestored: Veritable;
+      let singlePicRestored: CoreVeritable;
       const singlePicKey = await singlePic.getKeyString();
       for (const post of posts) {
         const candidateKey = await post.getKeyString();
@@ -383,7 +383,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single PIC with notification', () => {
-      const singlePicNotifyRestored: Veritable = posts.find(
+      const singlePicNotifyRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === singlePicNotify.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singlePicNotifyRestored).toBeInstanceOf(Veritum);
       if (format === RetrievalFormat.Cube) expect(singlePicNotifyRestored).toBeInstanceOf(Cube);
@@ -391,7 +391,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single MUC', () => {
-      const singleMucRestored: Veritable = posts.find(
+      const singleMucRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === singleMuc.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singleMucRestored).toBeInstanceOf(Veritum);
       if (format === RetrievalFormat.Cube) expect(singleMucRestored).toBeInstanceOf(Cube);
@@ -399,7 +399,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single MUC with notification', () => {
-      const singleMucNotifyRestored: Veritable = posts.find(
+      const singleMucNotifyRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === singleMucNotify.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singleMucNotifyRestored).toBeInstanceOf(Veritum);
       if (format === RetrievalFormat.Cube) expect(singleMucNotifyRestored).toBeInstanceOf(Cube);
@@ -407,7 +407,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single PMUC', () => {
-      const singlePmucRestored: Veritable = posts.find(
+      const singlePmucRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === singlePmuc.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singlePmucRestored).toBeInstanceOf(Veritum);
       if (format === RetrievalFormat.Cube) expect(singlePmucRestored).toBeInstanceOf(Cube);
@@ -415,7 +415,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single PMUC with notification', () => {
-      const singlePmucNotifyRestored: Veritable = posts.find(
+      const singlePmucNotifyRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === singlePmucNotify.getKeyStringIfAvailable())!;
       if (format === RetrievalFormat.Veritum) expect(singlePmucNotifyRestored).toBeInstanceOf(Veritum);
       if (format === RetrievalFormat.Cube) expect(singlePmucNotifyRestored).toBeInstanceOf(Cube);
@@ -423,14 +423,14 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     if (format === RetrievalFormat.Veritum) it('restores a frozen multi Cube post', () => {
-      const multiFrozenRestored: Veritable = posts.find(
+      const multiFrozenRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === multiFrozen.getKeyStringIfAvailable())!;
       expect(multiFrozenRestored).toBeInstanceOf(Veritum);
       postEquals(multiFrozen, multiFrozenRestored);
     });
 
     if (format === RetrievalFormat.Cube) it('restores the first Cube of a frozen multi Cube post', () => {
-      const multiFrozenRestored: Veritable = posts.find(
+      const multiFrozenRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === multiFrozen.getKeyStringIfAvailable())!;
       expect(multiFrozenRestored).toBeInstanceOf(Cube);
       postEquals(multiFrozen, multiFrozenRestored, 900);
@@ -439,14 +439,14 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
 
     // TODO FIXME: PIC Veritum handling still buggy
     if (format === RetrievalFormat.Veritum) it.skip('restores a PIC multi Cube post', () => {
-      const multiPicRestored: Veritable = posts.find(
+      const multiPicRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable())!;
       expect(multiPicRestored).toBeInstanceOf(Veritum);
       postEquals(multiPic, multiPicRestored);
     });
 
     if (format === RetrievalFormat.Cube) it('restores the first Cube of a PIC multi Cube post', () => {
-      const multiPicRestored: Veritable = posts.find(
+      const multiPicRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable())!;
       expect(multiPicRestored).toBeInstanceOf(Cube);
       postEquals(multiPic, multiPicRestored, 900);
@@ -454,7 +454,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     if (format === RetrievalFormat.Veritum) it('restores a frozen single Cube encrypted post', () => {
-      const singleFrozenEncryptedRestored: Veritable = posts.find(
+      const singleFrozenEncryptedRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenEncrypted.getKeyStringIfAvailable())!;
       expect(singleFrozenEncryptedRestored).toBeInstanceOf(Veritum);
       // post is encrypted to self and should get decrypted automatically
@@ -462,7 +462,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     if (format === RetrievalFormat.Cube) it('returns the encrypteed raw Cube for an (frozen single Cube) encrypted post', () => {
-      const singleFrozenEncryptedRestored: Veritable = posts.find(
+      const singleFrozenEncryptedRestored: CoreVeritable= posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenEncrypted.getKeyStringIfAvailable())!;
       expect(singleFrozenEncryptedRestored).toBeInstanceOf(Cube);
       // post is encrypted and payload is thus not available
@@ -487,7 +487,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
         expect(postInfo[RelationshipType.REPLY_TO]).toHaveLength(1);
         expect(postInfo[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
 
-        const referencedPostInfo: PostInfo<Veritable> = await postInfo[RelationshipType.REPLY_TO][0];
+        const referencedPostInfo: PostInfo<CoreVeritable> = await postInfo[RelationshipType.REPLY_TO][0];
         expect(referencedPostInfo).toBeDefined();
         expect(referencedPostInfo.main.getKeyStringIfAvailable()).toEqual(somebodyElsesPost.getKeyStringIfAvailable());
         expect(referencedPostInfo.main.getFirstField(FieldType.PAYLOAD)?.valueString).toEqual(
@@ -500,7 +500,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
         expect(postInfo[RelationshipType.REPLY_TO]).toHaveLength(1);
         expect(postInfo[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
 
-        const referencedPostInfo: PostInfo<Veritable> = await postInfo[RelationshipType.REPLY_TO][0];
+        const referencedPostInfo: PostInfo<CoreVeritable> = await postInfo[RelationshipType.REPLY_TO][0];
         expect(referencedPostInfo).toBeDefined();
         expect(referencedPostInfo.main).toBeUndefined();
       });
@@ -513,7 +513,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
   });
 });
 
-function postEquals(a: Veritable, b: Veritable, compareLength?: number) {
+function postEquals(a:CoreVeritable, b:CoreVeritable, compareLength?: number) {
   // Do we even have two Veritables to compare?
   expect(a).toBeDefined();
   expect(b).toBeDefined();

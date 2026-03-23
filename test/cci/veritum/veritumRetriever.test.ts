@@ -1,7 +1,7 @@
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { CubeType, CubeKey, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
 import { CoreCube } from '../../../src/core/cube/coreCube';
-import { Veritable } from '../../../src/core/cube/veritable.definition';
+import { CoreVeritable } from '../../../src/core/cube/coreVeritable.definition';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
@@ -127,21 +127,21 @@ describe('VeritumRetriever', () => {
         expect(result.main.equals(cubeA)).toBe(true);
 
         // verify REPLY_TO rel to Cube B resolved
-        const replyPromise: Promise<Veritable> = result[RelationshipType.REPLY_TO][0];
+        const replyPromise: Promise<CoreVeritable> = result[RelationshipType.REPLY_TO][0];
         expect(replyPromise).toBeInstanceOf(Promise);
-        const reply: Veritable = await replyPromise;
+        const reply: CoreVeritable= await replyPromise;
         expect(reply.equals(cubeB)).toBe(true);
 
         // verify MYPOST rel to Cube B resolved
-        const postBPromise: Promise<Veritable> = result[RelationshipType.MYPOST][0];
+        const postBPromise: Promise<CoreVeritable> = result[RelationshipType.MYPOST][0];
         expect(postBPromise).toBeInstanceOf(Promise);
-        const postB: Veritable = await postBPromise;
+        const postB: CoreVeritable= await postBPromise;
         expect(postB.equals(cubeB)).toBe(true);
 
         // verify MYPOST rel to Cube C resolved
-        const postCPromise: Promise<Veritable> = result[RelationshipType.MYPOST][1];
+        const postCPromise: Promise<CoreVeritable> = result[RelationshipType.MYPOST][1];
         expect(postCPromise).toBeInstanceOf(Promise);
-        const postC: Veritable = await postCPromise;
+        const postC: CoreVeritable= await postCPromise;
         expect(postC.equals(cubeC)).toBe(true);
       });
     });
@@ -498,7 +498,7 @@ describe('VeritumRetriever', () => {
         expect(key.length).toBe(NetConstants.CUBE_KEY_SIZE);
 
         // Run test
-        const res: Veritable = await retriever.getVeritum(key);
+        const res: CoreVeritable= await retriever.getVeritum(key);
 
         // Verify result
         expect(res instanceof Veritum).toBe(true);
@@ -574,7 +574,7 @@ describe('VeritumRetriever', () => {
 
         // Run test --
         // note we don't await the result just yet
-        const retrievalPromise: Promise<Veritable> = retriever.getVeritum(key);
+        const retrievalPromise: Promise<CoreVeritable> = retriever.getVeritum(key);
 
         // Just for verification, also test a single Cube retrieval,
         // which for a single Cube Veritum is almost the same thing
@@ -597,7 +597,7 @@ describe('VeritumRetriever', () => {
           singleCube.getFirstField(FieldType.DATE).value)).toBe(true);
 
         // Verify result: Assert that the Veritum has been reconstructed correctly
-        const res: Veritable = await retrievalPromise;
+        const res: CoreVeritable= await retrievalPromise;
         expect(res).toBeDefined();
         expect(res instanceof Veritum).toBe(true);
         expect(res.getFirstField(FieldType.PAYLOAD).valueString).toEqual(short);
@@ -739,21 +739,21 @@ describe('VeritumRetriever', () => {
           expect(result.main.equals(vA)).toBe(true);
 
           // verify REPLY_TO rel to Veritum B resolved
-          const replyPromise: Promise<Veritable> = result[RelationshipType.REPLY_TO][0];
+          const replyPromise: Promise<CoreVeritable> = result[RelationshipType.REPLY_TO][0];
           expect(replyPromise).toBeInstanceOf(Promise);
-          const reply: Veritable = await replyPromise;
+          const reply: CoreVeritable= await replyPromise;
           expect(reply.equals(vB)).toBe(true);
 
           // verify MYPOST rel to Veritum B resolved
-          const postBPromise: Promise<Veritable> = result[RelationshipType.MYPOST][0];
+          const postBPromise: Promise<CoreVeritable> = result[RelationshipType.MYPOST][0];
           expect(postBPromise).toBeInstanceOf(Promise);
-          const postB: Veritable = await postBPromise;
+          const postB: CoreVeritable= await postBPromise;
           expect(postB.equals(vB)).toBe(true);
 
           // verify MYPOST rel to Veritum C resolved
-          const postCPromise: Promise<Veritable> = result[RelationshipType.MYPOST][1];
+          const postCPromise: Promise<CoreVeritable> = result[RelationshipType.MYPOST][1];
           expect(postCPromise).toBeInstanceOf(Promise);
-          const postC: Veritable = await postCPromise;
+          const postC: CoreVeritable= await postCPromise;
           expect(postC.equals(vC)).toBe(true);
         });
 
@@ -861,7 +861,7 @@ describe('VeritumRetriever', () => {
             expect(testRetrieval.getFirstField(FieldType.PAYLOAD).valueString).toEqual(latin);
 
             // verify test setup: assert root notification Cube is retrievable
-            const rootCubes: Veritable[] = await ArrayFromAsync(
+            const rootCubes: CoreVeritable[] = await ArrayFromAsync(
               retriever.cubeRetriever.getNotifications(recipientKey));
             expect(rootCubes.length).toBe(1);
             expect(rootCubes[0] instanceof Cube).toBe(true);
@@ -901,7 +901,7 @@ describe('VeritumRetriever', () => {
             expect(testRetrieval.getFirstField(FieldType.PAYLOAD).valueString).toEqual(evenLonger);
 
             // verify test setup: assert root notification Cube is retrievable
-            const rootCubes: Veritable[] = await ArrayFromAsync(
+            const rootCubes: CoreVeritable[] = await ArrayFromAsync(
               retriever.cubeRetriever.getNotifications(recipientKey));
             expect(rootCubes.length).toBe(1);
             expect(rootCubes[0] instanceof Cube).toBe(true);
@@ -951,9 +951,9 @@ describe('VeritumRetriever', () => {
 
             // Run test --
             // note we don't await the result just yet
-            const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+            const retrievalPromise: Promise<CoreVeritable[]> = ArrayFromAsync(
               retriever.getNotifications(recipientKey));
-            const res: Veritable[] = await retrievalPromise;
+            const res: CoreVeritable[] = await retrievalPromise;
 
             // Verify result
             expect(res.length).toBe(2);
@@ -1048,21 +1048,21 @@ describe('VeritumRetriever', () => {
               expect(result.main.equals(vA)).toBe(true);
 
               // verify REPLY_TO rel to Veritum B resolved
-              const replyPromise: Promise<Veritable> = result[RelationshipType.REPLY_TO][0];
+              const replyPromise: Promise<CoreVeritable> = result[RelationshipType.REPLY_TO][0];
               expect(replyPromise).toBeInstanceOf(Promise);
-              const reply: Veritable = await replyPromise;
+              const reply: CoreVeritable= await replyPromise;
               expect(reply.equals(vB)).toBe(true);
 
               // verify MYPOST rel to Veritum B resolved
-              const postBPromise: Promise<Veritable> = result[RelationshipType.MYPOST][0];
+              const postBPromise: Promise<CoreVeritable> = result[RelationshipType.MYPOST][0];
               expect(postBPromise).toBeInstanceOf(Promise);
-              const postB: Veritable = await postBPromise;
+              const postB: CoreVeritable= await postBPromise;
               expect(postB.equals(vB)).toBe(true);
 
               // verify MYPOST rel to Veritum C resolved
-              const postCPromise: Promise<Veritable> = result[RelationshipType.MYPOST][1];
+              const postCPromise: Promise<CoreVeritable> = result[RelationshipType.MYPOST][1];
               expect(postCPromise).toBeInstanceOf(Promise);
-              const postC: Veritable = await postCPromise;
+              const postC: CoreVeritable= await postCPromise;
               expect(postC.equals(vC)).toBe(true);
             });
           });  // using option resolveRels=true (single layer)
@@ -1125,7 +1125,7 @@ describe('VeritumRetriever', () => {
 
           // Run test --
           // note we don't await the result just yet
-          const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+          const retrievalPromise: Promise<CoreVeritable[]> = ArrayFromAsync(
             retriever.getNotifications(recipientKey));
 
           // wait a moment to simulate network latency
@@ -1135,7 +1135,7 @@ describe('VeritumRetriever', () => {
           scheduler.handleCubesDelivered([singleCubeBin], peer);
 
           // Notification has "arrived", so the retrieval promise should resolve
-          const res: Veritable[] = await retrievalPromise;
+          const res: CoreVeritable[] = await retrievalPromise;
 
           // Verify result
           expect(res.length).toBe(1);
@@ -1168,7 +1168,7 @@ describe('VeritumRetriever', () => {
 
           // Run test --
           // note we don't await the result just yet
-          const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+          const retrievalPromise: Promise<CoreVeritable[]> = ArrayFromAsync(
             retriever.getNotifications(recipientKey));
 
           // wait a moment to simulate network latency
@@ -1178,7 +1178,7 @@ describe('VeritumRetriever', () => {
           scheduler.handleCubesDelivered([singleCubeBin], peer);
 
           // Notification has "arrived", so the retrieval promise should resolve
-          const res: Veritable[] = await retrievalPromise;
+          const res: CoreVeritable[] = await retrievalPromise;
 
           // Verify result
           expect(res.length).toBe(1);
@@ -1210,7 +1210,7 @@ describe('VeritumRetriever', () => {
 
           // Run test --
           // note we don't await the result just yet
-          const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+          const retrievalPromise: Promise<CoreVeritable[]> = ArrayFromAsync(
             retriever.getNotifications(recipientKey));
 
           // wait a moment to simulate network latency
@@ -1226,7 +1226,7 @@ describe('VeritumRetriever', () => {
           scheduler.handleCubesDelivered([twoCubeChunk2Bin], peer);
 
           // All chunks have "arrived", so the retrieval promise should resolve
-          const res: Veritable[] = await retrievalPromise;
+          const res: CoreVeritable[] = await retrievalPromise;
 
           // Verify result
           expect(res.length).toBe(1);
@@ -1262,7 +1262,7 @@ describe('VeritumRetriever', () => {
 
           // Run test --
           // note we don't await the result just yet
-          const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+          const retrievalPromise: Promise<CoreVeritable[]> = ArrayFromAsync(
             retriever.getNotifications(recipientKey));
 
           // wait a moment to simulate network latency
@@ -1278,7 +1278,7 @@ describe('VeritumRetriever', () => {
           cubeStore.addCube(twoCubeChunks[0]);
 
           // All chunks have "arrived", so the retrieval promise should resolve
-          const res: Veritable[] = await retrievalPromise;
+          const res: CoreVeritable[] = await retrievalPromise;
 
           // Verify result
           expect(res.length).toBe(1);
@@ -1326,7 +1326,7 @@ describe('VeritumRetriever', () => {
 
           // Run test --
           // note we don't await the result just yet
-          const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+          const retrievalPromise: Promise<CoreVeritable[]> = ArrayFromAsync(
             retriever.getNotifications(recipientKey));
 
           // wait a moment to simulate network latency
@@ -1336,7 +1336,7 @@ describe('VeritumRetriever', () => {
           scheduler.handleCubesDelivered([firstBin, secondBin], peer);
 
           // All chunks have "arrived", so the retrieval promise should resolve
-          const res: Veritable[] = await retrievalPromise;
+          const res: CoreVeritable[] = await retrievalPromise;
 
           // Verify result
           expect(res.length).toBe(2);
@@ -1396,7 +1396,7 @@ describe('VeritumRetriever', () => {
 
           // Run test --
           // note we don't await the result just yet
-          const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+          const retrievalPromise: Promise<CoreVeritable[]> = ArrayFromAsync(
             retriever.getNotifications(recipientKey));
 
           // wait a moment to simulate network latency
@@ -1419,7 +1419,7 @@ describe('VeritumRetriever', () => {
           await scheduler.handleCubesDelivered([twoCubeChunk2Bin], peer);
 
           // All chunks have "arrived", so the retrieval promise should resolve
-          const res: Veritable[] = await retrievalPromise;
+          const res: CoreVeritable[] = await retrievalPromise;
 
           // Verify result
           expect(res.length).toBe(2);
@@ -1456,7 +1456,7 @@ describe('VeritumRetriever', () => {
           await cubeStore.addCube(notification);
 
           const gen = retriever.getNotifications(recipientKey, { format: RetrievalFormat.Cube });
-          const res: Veritable[] = await ArrayFromAsync(gen);
+          const res: CoreVeritable[] = await ArrayFromAsync(gen);
           expect(res.length).toBe(1);
           expect(res[0] instanceof Cube).toBe(true);
           expect(res[0].equals(notification)).toBe(true);

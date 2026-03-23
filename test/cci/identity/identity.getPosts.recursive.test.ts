@@ -1,4 +1,4 @@
-import { Veritable } from '../../../src/core/cube/veritable.definition';
+import { CoreVeritable } from '../../../src/core/cube/coreVeritable.definition';
 import { CoreCube } from '../../../src/core/cube/coreCube';
 
 import { Cube } from '../../../src/cci/cube/cube';
@@ -16,19 +16,19 @@ import { TestWordPostSet, TestWorld } from '../../app/zw/testWorld';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RetrievalFormat } from '../../../src/cci/veritum/veritum.definitions';
 
-async function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable, format?: RetrievalFormat, expectAuthor?: Identity, shouldResolveBasePost?: Veritable) {
+async function hasPost(list: CoreVeritable[]|PostInfo<CoreVeritable>[], post:CoreVeritable, format?: RetrievalFormat, expectAuthor?: Identity, shouldResolveBasePost?: CoreVeritable) {
   // fetch item from list by key
   const item = list.find(item => {
-    if (item['main'] !== undefined) item = (item as unknown as PostInfo<Veritable>).main;
-    return (item as Veritable).getKeyStringIfAvailable() === post.getKeyStringIfAvailable();
+    if (item['main'] !== undefined) item = (item as unknown as PostInfo<CoreVeritable>).main;
+    return (item as CoreVeritable).getKeyStringIfAvailable() === post.getKeyStringIfAvailable();
   });
   expect(item).toBeDefined();
 
   // author check requested?
   if (expectAuthor) expect(item!['author'].keyString).toEqual(expectAuthor.keyString);
   // normalise postInfo to post
-  let veritum: Veritable = item as Veritable;
-  if (veritum['main'] !== undefined) veritum = (veritum as unknown as PostInfo<Veritable>).main;
+  let veritum: CoreVeritable= item as CoreVeritable;
+  if (veritum['main'] !== undefined) veritum = (veritum as unknown as PostInfo<CoreVeritable>).main;
   // correct format?
   if (format === RetrievalFormat.Veritum) expect(veritum).toBeInstanceOf(Veritum);
   if (format === RetrievalFormat.Cube) expect(veritum).toBeInstanceOf(Cube);
@@ -45,11 +45,11 @@ async function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable,
   }
 }
 
-function doesNotHavePost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable): void {
+function doesNotHavePost(list: CoreVeritable[]|PostInfo<CoreVeritable>[], post: CoreVeritable): void {
   // fetch item from list by key
   const item = list.find(item => {
-    if (item['main'] !== undefined) item = (item as unknown as PostInfo<Veritable>).main;
-    return (item as Veritable).getKeyStringIfAvailable() === post.getKeyStringIfAvailable();
+    if (item['main'] !== undefined) item = (item as unknown as PostInfo<CoreVeritable>).main;
+    return (item as CoreVeritable).getKeyStringIfAvailable() === post.getKeyStringIfAvailable();
   });
   expect(item).toBeUndefined();
 }
@@ -130,7 +130,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       await postsGenPostInfoVeritum.existingYielded;
     });
 
-    function testPostBunch(list: Veritable[]|PostInfo<Veritable>[], n: number = 0, format: RetrievalFormat, testAuthor: boolean, testReplyResolution: boolean) {
+    function testPostBunch(list: CoreVeritable[]|PostInfo<CoreVeritable>[], n: number = 0, format: RetrievalFormat, testAuthor: boolean, testReplyResolution: boolean) {
       it('should include my own root posts', () => {
         hasPost(list, w.posts[n].own, format, testAuthor? w.protagonist : undefined);
       });

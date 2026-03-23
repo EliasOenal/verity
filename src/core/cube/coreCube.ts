@@ -2,7 +2,7 @@
 import { ApiMisuseError, Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
-import type { Veritable } from './veritable.definition';
+import type { CoreVeritable } from './coreVeritable.definition';
 
 import { FieldPosition, FieldsEqualOptions } from '../fields/baseFields';
 import { BinaryDataError, BinaryLengthError, CubeCreateOptions, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./coreCube.definitions";
@@ -25,16 +25,16 @@ import { Buffer } from 'buffer';
  */
 // Note: Cannot be moved to separate file as it uses coreCubeFamily as a default
 //       param, moving it would cause a circular dependency.
-export abstract class VeritableBaseImplementation<F extends CubeFields = CubeFields> implements Veritable {
+export abstract class CoreVeritableBaseImplementation<F extends CubeFields = CubeFields> implements CoreVeritable {
     protected _fields!: F;
     readonly options!: CubeCreateOptions;
 
 
     constructor(options: CubeCreateOptions);
-    constructor(copyFrom: VeritableBaseImplementation);
-    constructor(param1?: CubeCreateOptions|VeritableBaseImplementation);
-    constructor(param1: CubeCreateOptions|VeritableBaseImplementation = {}) {
-        if (param1 instanceof VeritableBaseImplementation) {
+    constructor(copyFrom: CoreVeritableBaseImplementation);
+    constructor(param1?: CubeCreateOptions|CoreVeritableBaseImplementation);
+    constructor(param1: CubeCreateOptions|CoreVeritableBaseImplementation = {}) {
+        if (param1 instanceof CoreVeritableBaseImplementation) {
             // copy constructor:
             // copy options object
             if (param1.options) this.options = {...param1.options};
@@ -109,7 +109,7 @@ export abstract class VeritableBaseImplementation<F extends CubeFields = CubeFie
         throw new ApiMisuseError("VeritableBaseImplementation subclasses must implement getKeyString()");
     }
 
-    equals(other: Veritable&VeritableBaseImplementation, options?: FieldsEqualOptions): boolean {
+    equals(other: CoreVeritable&CoreVeritableBaseImplementation, options?: FieldsEqualOptions): boolean {
         // Cubes of different types are not equal
         if (this.cubeType !== other.cubeType) return false;
 
@@ -146,7 +146,7 @@ export abstract class VeritableBaseImplementation<F extends CubeFields = CubeFie
     }
 
     fieldsEqual(
-            other: VeritableBaseImplementation,
+            other: CoreVeritableBaseImplementation,
             options: FieldsEqualOptions = {},
     ): boolean {
         return this._fields.equals(other._fields, options);
@@ -226,7 +226,7 @@ export abstract class VeritableBaseImplementation<F extends CubeFields = CubeFie
     }
   }
 
-export class CoreCube extends VeritableBaseImplementation implements Veritable {
+export class CoreCube extends CoreVeritableBaseImplementation implements CoreVeritable {
     /**
      * Creates a new fully valid Cube of your chosen type.
      * @param type Which type of Cube would you like?
