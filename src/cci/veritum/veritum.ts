@@ -70,13 +70,9 @@ export class Veritum extends CoreVeritableBaseImplementation implements CoreVeri
     if (param1 instanceof Veritum) {
       // copy constructor
       const copyFrom: Veritum = param1;
-      const options = {
-        // We'll keep the original's options
-        ...copyFrom.options,
-        // but we'll make a shallow copy of its fields object.
-        fields: new VerityFields(copyFrom._fields as VerityFields, (copyFrom._fields as VerityFields).fieldDefinition),
-      }
-      super({...options, cubeType: copyFrom.cubeType});
+      // base class takes care of copying fields and stuff
+      super(copyFrom);
+      // copy chunks (those are Veritum-specific, so the base class can't handle them)
       this._chunks = copyFrom._chunks ?? [];
     } else {
       // creating new Veritum

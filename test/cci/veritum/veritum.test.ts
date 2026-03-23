@@ -2,6 +2,7 @@ import { Settings } from "../../../src/core/settings";
 import { Cube, cciFamily } from "../../../src/cci/cube/cube";
 import { MediaTypes, FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
+import { VerityFields } from "../../../src/cci/cube/verityFields";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { coreCubeFamily } from "../../../src/core/cube/coreCube";
 import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
@@ -59,7 +60,23 @@ describe('Veritum (basic tests)', () => {
         });
         const copiedVeritum = new Veritum(originalVeritum);
 
+        // copied field should all be equal
         expect(copiedVeritum.fieldsEqual(originalVeritum)).toBe(true);
+
+        // fields object should not be shared between instances
+        expect((copiedVeritum as any)._fields).toBeInstanceOf(VerityFields);
+        expect((copiedVeritum as any)._fields).not.toBe((originalVeritum as any)._fields);
+
+        // each field object should not be shared between instances
+        const copyFieldArray = ((copiedVeritum as any)._fields.data) as VerityField[];
+        expect(Array.isArray(copyFieldArray)).toBe(true);
+        const originalFieldArray = ((originalVeritum as any)._fields.data) as VerityField[];
+        expect(Array.isArray(originalFieldArray)).toBe(true);
+        expect(copyFieldArray).not.toBe(originalFieldArray);
+        expect(copyFieldArray.length).toBe(originalFieldArray.length);
+        for (let i = 0; i < copyFieldArray.length; i++) {
+          expect(copyFieldArray[i]).not.toBe(originalFieldArray[i]);
+        }
       });
 
       it('creates a copy that evaluates as equal to the original', () => {
@@ -71,7 +88,7 @@ describe('Veritum (basic tests)', () => {
         expect(copiedVeritum.equals(originalVeritum)).toBe(true);
       });
 
-      it('ensures the copied instance is independent of the original', () => {
+      it('modifying the copied instance does not modify the original', () => {
         const originalVeritum = new Veritum({
           cubeType: CubeType.FROZEN,
           fields: [applicationField, mediaTypeField, payloadField],
