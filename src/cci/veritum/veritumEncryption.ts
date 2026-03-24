@@ -333,7 +333,8 @@ export function ChunkDecrypt(
       const decryptedFields: VerityFields = decryptOutput?.result;
       if (decryptedFields) {  // if decryption successful
         const decryptedChunk = new chunk.family.cubeClass(
-        chunk.cubeType, {
+        {
+          cubeType: chunk.cubeType,
           family: chunk.family,
           fields: decryptedFields,
           requiredDifficulty: 0,  // not to be published

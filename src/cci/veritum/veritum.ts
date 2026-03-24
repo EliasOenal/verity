@@ -3,14 +3,13 @@ import type { Veritable } from "../cube/veritable.definition";
 import { CoreVeritableBaseImplementation } from "../../core/cube/coreCube";
 import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/coreCube.definitions";
 import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
+import { logger } from "../../core/logger";
 
 import { Cube, VeritableMixin, cciFamily } from "../cube/cube";
 import { Relationship, RelationshipType } from "../cube/relationship";
 import { Split, Recombine } from "./continuation";
 import { VeritumCreateOptions, VeritumFromChunksOptions, VeritumCompileOptions, SplitOptions, ChunkFinalisationState } from "./veritum.definitions";
 import { ChunkDecrypt, ChunkEncryptionHelper } from "./veritumEncryption";
-
-import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
@@ -31,9 +30,6 @@ export class Veritum extends VeritableMixin(CoreVeritableBaseImplementation) imp
   get chunks(): Iterable<Cube> { return this._chunks }
 
   declare options: VeritumCreateOptions;
-
-  get publicKey(): Buffer { return this.options.publicKey }
-  get privateKey(): Buffer { return this.options.privateKey }
 
   private _keyChunkNo: number = 0;
   /**
@@ -82,8 +78,6 @@ export class Veritum extends VeritableMixin(CoreVeritableBaseImplementation) imp
     } else {
       // creating new Veritum
       const options: VeritumCreateOptions = param1;
-      options.family ??= cciFamily;
-      options.cubeType ??= DEFAULT_CUBE_TYPE;
       super(options);
       this._chunks = this.options.chunks ?? [];
     }

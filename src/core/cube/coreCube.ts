@@ -310,7 +310,7 @@ export class CoreCube extends CoreVeritableBaseImplementation implements CoreVer
         ) as CubeFields;
 
         // sculpt Cube
-        const cube: CoreCube = new options.family.cubeClass(options.cubeType, options);
+        const cube: CoreCube = new options.family.cubeClass(options);
 
         // on signed types, supply private key
         if (HasSignature[options.cubeType]) cube.privateKey = options.privateKey as Buffer;
@@ -391,24 +391,21 @@ export class CoreCube extends CoreVeritableBaseImplementation implements CoreVer
         binaryData: Buffer,
         options?: CubeCreateOptions);
     /**
-     * Sculpt a new bare Cube, starting out without any fields.
+     * Sculpt a new bare core-only Cube, starting out without any fields.
      * This is only useful if for some reason you need full control even over
-     * mandatory boilerplate fields. Consider using CoreCube.Frozen or CoreCube.MUC
-     * instead, which will sculpt a fully valid frozen Cube or MUC, respectively.
+     * mandatory boilerplate fields. Consider using CoreCube.Create which will
+     * sculpt a fully valid Cube including a valid field for the chosen Cube type.
+     * Also keep in mind that applications should usually use CCI (high level)
+     * classes such as Veritum or Cube rather than CoreCube.
      **/
-    // Note: Usage of CubeCreateOptions here is not perfectly elegant,
-    //       as we require cubeType as a mandatory param and will ignore any
-    //       value supplied within options.
-    constructor(
-        cubeType: CubeType,
-        options?: CubeCreateOptions);
+    constructor(options?: CubeCreateOptions);
     /** Copy constructor: Copy an existing Cube */
     constructor(copyFrom: CoreCube);
     // Repeat implementation as declaration as calls must strictly match a
     // declaration, not the implementation (which is stupid)
-    constructor(param1: Buffer | CubeType | CoreCube, options?: CubeCreateOptions);
+    constructor(param1: Buffer | CoreCube | CubeCreateOptions, options?: CubeCreateOptions);
     constructor(
-            param1: Buffer | CubeType | CoreCube,
+            param1: Buffer | CoreCube | CubeCreateOptions,
             options?: CubeCreateOptions)
     {
         if (param1 instanceof CoreCube) {
@@ -449,9 +446,10 @@ export class CoreCube extends CoreVeritableBaseImplementation implements CoreVer
                 this.generatePicKey();
             }
             this.validateCube();
-        } else if (param1 in CubeType) {
+        } else {
             // sculpt new Cube
-            super({...options, cubeType: param1});
+            const options: CubeCreateOptions = param1 ?? {}
+            super(options);
             if (options?.fields) {  // do we have a field set already?
                 if (!(options.fields instanceof CubeFields)) {
                     options.fields =  // upgrade to CubeFields if necessary
@@ -463,8 +461,6 @@ export class CoreCube extends CoreVeritableBaseImplementation implements CoreVer
                 this.setFields(options.fields as CubeFields);  // set fields
             }  // no fields yet? let's just start out with an empty set then
             else this._fields = new this.fieldParser.fieldDef.fieldsObjectClass([], this.fieldParser.fieldDef);
-        } else {
-            throw new ApiMisuseError("Cube constructor: first parameter must be Buffer or CubeType");
         }
     }
 

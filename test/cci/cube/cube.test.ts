@@ -15,7 +15,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 
 const reducedDifficulty = 0;
 
-describe('cciCube', () => {
+describe('Cube', () => {
   let commonKeyPair: sodium.KeyPair;
   let commonPublicKey: Buffer, commonPrivateKey: Buffer;
 
@@ -28,7 +28,7 @@ describe('cciCube', () => {
 
   describe('setFields()', () => {
     it('should set and get fields correctly', () => {
-      const cube = new Cube(CubeType.FROZEN);
+      const cube = new Cube({ cubeType: CubeType.FROZEN });
       const fields = new VerityFields([
         VerityField.Type(CubeType.FROZEN),
         VerityField.Payload("Ero celeber Cubus cum compilatus fuero."),
@@ -46,7 +46,7 @@ describe('cciCube', () => {
       // everything is fixed size anyway and will throw way before setFields()
       // if sizes don't match.
       // TODO: Move to CCI tests
-      const cube = new Cube(CubeType.FROZEN);
+      const cube = new Cube({ cubeType: CubeType.FROZEN });
       const fields = new VerityFields([
         VerityField.Type(CubeType.FROZEN),
         new VerityField(FieldType.PAYLOAD, Buffer.alloc(8020)),

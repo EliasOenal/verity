@@ -8,9 +8,10 @@ import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { FieldPosition } from "../../core/fields/baseFields";
-import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/coreCube.definitions";
+import { CubeType, FieldError, FieldSizeError } from "../../core/cube/coreCube.definitions";
 import { CoreCube, CoreVeritableBaseImplementation } from "../../core/cube/coreCube";
 import { CubeCreateOptions } from '../../core/cube/coreCube.definitions';
+import { logger } from "../../core/logger";
 
 import { VerityField } from "./verityField";
 import { VerityFields, cciFieldParsers } from "./verityFields";
@@ -36,32 +37,57 @@ type Constructor<T = {}> = new (...args: any[]) => T;
 export function VeritableMixin<TBase extends Constructor>(Base: TBase) {
   return class VeritableExtended extends Base {
 
+    declare _fields: VerityFields;
+
     constructor(...args: any[]) {
-        super(...args);
+      const param1 = args[0];
 
-        // Reinterpret the args; this is necessary due to a TypeScript
-        // limitation requiring mixin constructors to accept any[] as args
-        const param1 = args[0] as
-            | CubeCreateOptions
-            | CoreVeritableBaseImplementation
-            | undefined;
+      // CASE 1: Copy constructor
+      if (param1 instanceof CoreVeritableBaseImplementation) {
+        super(param1);
+        return;
+      }
 
-        if (param1 instanceof CoreVeritableBaseImplementation) {
-            // copy-constructor case
-        } else {
-            const options = param1 ?? {};
-            // options-constructor case
-        }
+      // CASE 2: CubeCreateOptions (only if param1 is a POJO or undefined)
+      const isPlainObject =
+        param1 !== null &&
+        typeof param1 === "object" &&
+        Object.getPrototypeOf(param1) === Object.prototype;
+
+      if (param1 === undefined || isPlainObject) {
+        const options: CubeCreateOptions = param1 ?? {};
+        options.family ??= cciFamily;
+        super(options);
+        return;
+      }
+
+      // CASE 3: Any other constructor overload (e.g. Buffer, number, etc.)
+      // → Do not touch args; forward them unchanged.
+      super(...args);
     }
 
     getRelationships(type?: RelationshipType): Relationship[] {
-      const fields: VerityFields = (this as any)._fields;
-      return fields.getRelationships(type);
+      if (Settings.RUNTIME_ASSERTIONS) this.assertCci();
+      return this._fields.getRelationships(type);
     }
     getFirstRelationship(type?: number): Relationship {
-      const fields: VerityFields = (this as any)._fields;
-      return fields.getFirstRelationship(type);
+      if (Settings.RUNTIME_ASSERTIONS) this.assertCci();
+      return this._fields.getFirstRelationship(type);
     }
+
+    assertCci(raise: boolean = true): boolean {
+      // check if fields is a CCI-level object
+      // (in particular, this asserts no core-level fields objects snook in here)
+      if (!(this._fields instanceof VerityFields)) {
+        const msg = `CCI VeritableMixin.assertCci(): Veritable does not have CCI VerityFields but ${(this._fields as any)?.constructor?.name}.`;
+        if (raise) throw new FieldError(msg);
+        logger.error(msg);
+        return false;
+      }
+      // all checks passed
+      return true;
+    }
+
   };
 }
 
@@ -79,9 +105,7 @@ export class Cube extends VeritableMixin(CoreCube) implements Veritable {
     options = Object.assign({}, options);  // copy options to avoid messing up original
     options.family ??= cciFamily;
     const cube: Cube = super.Create(options) as Cube;
-    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
-      throw new CubeError("Cube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
-    }
+    if (Settings.RUNTIME_ASSERTIONS) cube.assertCci();
     return cube;
   }
 
@@ -90,9 +114,7 @@ export class Cube extends VeritableMixin(CoreCube) implements Veritable {
     options.cubeType = CubeType.FROZEN;
     options.family = options?.family ?? cciFamily;
     const cube: Cube = super.Frozen(options) as Cube;
-    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
-      throw new CubeError("Cube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
-    }
+    if (Settings.RUNTIME_ASSERTIONS) cube.assertCci();
     return cube;
   }
   /** @deprecated Use Create() directly please */
@@ -105,9 +127,7 @@ export class Cube extends VeritableMixin(CoreCube) implements Veritable {
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;
     const cube: Cube = super.MUC(publicKey, privateKey, options) as Cube;
-    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
-      throw new CubeError("Cube.MUC: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
-    }
+    if (Settings.RUNTIME_ASSERTIONS) cube.assertCci();
     return cube;
   }
 
@@ -116,41 +136,39 @@ export class Cube extends VeritableMixin(CoreCube) implements Veritable {
     binaryData: Buffer,
     options?: CubeCreateOptions);
   /**
-   * Sculpt a new bare Cube, starting out without any fields.
+   * Sculpt a new bare CCI (application-level) Cube, starting out without any fields.
    * This is only useful if for some reason you need full control even over
-   * mandatory boilerplate fields. Consider using CoreCube.Frozen or CoreCube.MUC
-   * instead, which will sculpt a fully valid frozen Cube or MUC, respectively.
+   * mandatory boilerplate fields. Consider using Cube.Create which will
+   * sculpt a fully valid Cube including a valid field for the chosen Cube type.
    **/
-  constructor(
-      cubeType: CubeType,
-      options?: CubeCreateOptions);
+  constructor(options?: CubeCreateOptions);
   /** Copy constructor: Copy an existing Cube */
   constructor(copyFrom: Cube);
   // Repeat implementation as declaration as calls must strictly match a
   // declaration, not the implementation (which is stupid)
-  constructor(param1: Buffer | CubeType | Cube, option?: CubeCreateOptions);
+  constructor(param1: Buffer | Cube | CubeCreateOptions, option?: CubeCreateOptions);
 
   constructor(
-    param1: Buffer | CubeType | Cube,
+    param1: Buffer | Cube | CubeCreateOptions,
     options: CubeCreateOptions = {},
   ) {
-    options.family = options.family ?? cciFamily;
+    // Reactivation-case is handles here because it's a Cube-specific
+    // special case and not covered by the CCI level Veritable implementation
+    if (Buffer.isBuffer(param1)) {
+      options.family ??= cciFamily;
+    }
     super(param1, options)
   }
 
   /** @deprecated Use methods defined in Veritable instead */
   public get fields(): VerityFields {
-    if (Settings.RUNTIME_ASSERTIONS && !(this.assertCci())) {
-      throw new FieldError("This CCI Cube does not have CCI fields but " + this._fields.constructor.name);
-    }
+    if (Settings.RUNTIME_ASSERTIONS) this.assertCci();
     return this._fields as VerityFields;
   }
 
-  manipulateFields(): VerityFields { return super.manipulateFields() as VerityFields; }
-
-  assertCci(): boolean {
-    if (this._fields instanceof VerityFields) return true;
-    else return false;
+  manipulateFields(): VerityFields {
+    if (Settings.RUNTIME_ASSERTIONS) this.assertCci();
+    return super.manipulateFields() as VerityFields;
   }
 
   /**
