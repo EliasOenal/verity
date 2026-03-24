@@ -1,8 +1,8 @@
-// cube.ts
+// coreCube.ts
 import { ApiMisuseError, Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
-import type { CoreVeritable } from './coreVeritable.definition';
+import type { CoreVeritable, CoreVeritableClass } from './coreVeritable.definition';
 
 import { FieldPosition, FieldsEqualOptions } from '../fields/baseFields';
 import { BinaryDataError, BinaryLengthError, CubeCreateOptions, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./coreCube.definitions";
@@ -20,15 +20,15 @@ import sodium from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 
 /**
- * Base class for all of our Veritable implementations, namely Cube here
- * and Veritum on the CCI layer.
+ * Base class for all of our CoreVeritable implementations, namely CoreCube here.
+ * It is indirectly also the base of Veritum on the CCI layer through the CCI
+ * layer VeritableBaseImplementation which inherits from this.
  */
 // Note: Cannot be moved to separate file as it uses coreCubeFamily as a default
 //       param, moving it would cause a circular dependency.
-export abstract class CoreVeritableBaseImplementation<F extends CubeFields = CubeFields> implements CoreVeritable {
+export class CoreVeritableBaseImplementation<F extends CubeFields = CubeFields> implements CoreVeritable {
     protected _fields!: F;
     readonly options!: CubeCreateOptions;
-
 
     constructor(options: CubeCreateOptions);
     constructor(copyFrom: CoreVeritableBaseImplementation);
@@ -224,7 +224,10 @@ export abstract class CoreVeritableBaseImplementation<F extends CubeFields = Cub
         return CubeFields.NormaliseFields(
             fields, this.fieldParser.fieldDef) as F;
     }
-  }
+}
+// for compile-time type checking on constructor overloads only
+const coreCubeCtor: CoreVeritableClass = CoreVeritableBaseImplementation;
+
 
 export class CoreCube extends CoreVeritableBaseImplementation implements CoreVeritable {
     /**

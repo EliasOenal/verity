@@ -1,8 +1,8 @@
 import type { BaseField } from "../fields/baseField";
 import type { BaseFields, FieldPosition } from "../fields/baseFields";
 import type { FieldDefinition, FieldParser } from "../fields/fieldParser";
-import { CoreVeritableBaseImplementation } from "./coreCube";
-import type { CubeKey, CubeType } from "./coreCube.definitions";
+import type { CoreVeritableBaseImplementation } from "./coreCube";
+import type { CubeCreateOptions, CubeKey, CubeType } from "./coreCube.definitions";
 import type { CubeFamilyDefinition } from "./cubeFields";
 
 /**
@@ -150,3 +150,10 @@ export interface CoreVeritable {
    **/
   manipulateFields(): BaseFields;
 };
+
+// Additional interface only used for type checking a CoreVeritable's
+// implementation to verify it has all required constructor signatures.
+export interface CoreVeritableClass {
+  new(options: CubeCreateOptions): CoreVeritable;
+  new(copyFrom: CoreVeritableBaseImplementation): CoreVeritable;
+}

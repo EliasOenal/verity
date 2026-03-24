@@ -1,5 +1,7 @@
 import type { CubeFamilyDefinition } from "../../core/cube/cubeFields";
 import type { CubeField } from "../../core/cube/cubeField";
+
+import type { Veritable } from "./veritable.definition";
 import type { Relationship, RelationshipType } from "./relationship";
 
 import { Settings } from "../../core/settings";
@@ -7,7 +9,7 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/coreCube.definitions";
-import { CoreCube } from "../../core/cube/coreCube";
+import { CoreCube, CoreVeritableBaseImplementation } from "../../core/cube/coreCube";
 import { CubeCreateOptions } from '../../core/cube/coreCube.definitions';
 
 import { VerityField } from "./verityField";
@@ -16,7 +18,61 @@ import { FieldType } from "./cube.definitions";
 
 import { Buffer } from 'buffer';  // for browsers
 
-export class Cube extends CoreCube {
+// Just some TypeScript scaffolding SNAFU: Let's make a typedef for
+// a constructor accepting any kind and any number of arguments, as this is what
+// Mixins must support.
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+/**
+ * A Veritable is any Cube-like structure that has the same basic properties as
+ * a Cube, e.g. is based on fields, is identified by a unique key, which in turn
+ * depends on the Cube type it is based on.
+ * Examples of Veritables include obviously Cube (which is the basic block
+ * of data in Verity) as well as Veritum (a potentially multi-Cube data structure).
+ * This Mixin provides a common implementation of the CCI-level Veritable
+ * interface and is intended to be used on top of CoreBaseVeritableImplementation
+ * or any class inheriting from it.
+ */
+export function VeritableMixin<TBase extends Constructor>(Base: TBase) {
+  return class VeritableExtended extends Base {
+
+    constructor(...args: any[]) {
+        super(...args);
+
+        // Reinterpret the args; this is necessary due to a TypeScript
+        // limitation requiring mixin constructors to accept any[] as args
+        const param1 = args[0] as
+            | CubeCreateOptions
+            | CoreVeritableBaseImplementation
+            | undefined;
+
+        if (param1 instanceof CoreVeritableBaseImplementation) {
+            // copy-constructor case
+        } else {
+            const options = param1 ?? {};
+            // options-constructor case
+        }
+    }
+
+    getRelationships(type?: RelationshipType): Relationship[] {
+      const fields: VerityFields = (this as any)._fields;
+      return fields.getRelationships(type);
+    }
+    getFirstRelationship(type?: number): Relationship {
+      const fields: VerityFields = (this as any)._fields;
+      return fields.getFirstRelationship(type);
+    }
+  };
+}
+
+/**
+ * Cubes are Verity's fundamental building block, each containing a fixed amount
+ * of data split into fields, each field containing a single record of data.
+ * This is the CCI-level implementation of Cube, extending the core-level
+ * implementation by features such as TLV fields and supporting high level
+ * concepts such as CCI Relationships.
+ */
+export class Cube extends VeritableMixin(CoreCube) implements Veritable {
   static Create(
       options: CubeCreateOptions = {},
   ): Cube {
@@ -102,9 +158,6 @@ export class Cube extends CoreCube {
    * You don't need to call that manually, we will do that for you whenever
    * you request binary data. It can however safely be called multiple times.
    */
-  // TODO: move this to CCI or get rid of it entirely --
-  // since the core no longer handles variable length fields at all
-  // it has no notion of padding anymore
   public padUp(): boolean {
     let len = this.getFieldLength();  // how large are we now?
     if (len > NetConstants.CUBE_SIZE) {  // Cube to large :(
@@ -145,12 +198,6 @@ export class Cube extends CoreCube {
   // Expose field methods
   //###
 
-  getRelationships(type?: RelationshipType): Relationship[] {
-    return (this._fields as VerityFields).getRelationships(type);
-  }
-  public getFirstRelationship(type?: number): Relationship {
-    return (this._fields as VerityFields).getFirstRelationship(type);
-  }
   insertTillFull(
     fields: Iterable<CubeField>,
     position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS,

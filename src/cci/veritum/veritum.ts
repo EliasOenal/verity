@@ -1,27 +1,32 @@
-import type { CoreVeritable } from "../../core/cube/coreVeritable.definition";
+import type { Veritable } from "../cube/veritable.definition";
 
 import { CoreVeritableBaseImplementation } from "../../core/cube/coreCube";
 import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/coreCube.definitions";
 import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
 
-import { Cube, cciFamily } from "../cube/cube";
+import { Cube, VeritableMixin, cciFamily } from "../cube/cube";
 import { Relationship, RelationshipType } from "../cube/relationship";
-import { VerityFields } from "../cube/verityFields";
 import { Split, Recombine } from "./continuation";
-import { SplitOptions, ChunkFinalisationState } from "./veritum.definitions";
+import { VeritumCreateOptions, VeritumFromChunksOptions, VeritumCompileOptions, SplitOptions, ChunkFinalisationState } from "./veritum.definitions";
 import { ChunkDecrypt, ChunkEncryptionHelper } from "./veritumEncryption";
 
 import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
-import { VeritumCreateOptions, VeritumFromChunksOptions, VeritumCompileOptions } from "./veritum.definitions";
 
 // TODO: Provide an own configurable equals() method with sensible defaults
 //   to allow semantic comparisons between Verita as well as between Verita
 //   and Cubes.
 
-export class Veritum extends CoreVeritableBaseImplementation implements CoreVeritable {
+/**
+ * Veritum is the preferred high-level unit of data to by used by Verity
+ * applications. It is a variable-length collection of fields, and will be
+ * compiled into one or many Cubes to be published on the Verity network.
+ * Note: Multi-Cube Verita are only supported for non-signed Cube types (PIC,
+ * FROZEN and their notification variants), but not for signed types (MUC, PMUC).
+ */
+export class Veritum extends VeritableMixin(CoreVeritableBaseImplementation) implements Veritable {
   private _chunks: Cube[];
   get chunks(): Iterable<Cube> { return this._chunks }
 
@@ -197,15 +202,5 @@ export class Veritum extends CoreVeritableBaseImplementation implements CoreVeri
     }
     return this._chunks;
   }
-
-  // Note: The following two methods have been copied from cciCube.
-  //   That's not perfectly DRY, but come on, they're single line methods.
-  getRelationships(type?: RelationshipType): Array<Relationship> {
-    return (this._fields as VerityFields).getRelationships(type);
-  }
-  public getFirstRelationship(type?: number): Relationship {
-    return (this._fields as VerityFields).getFirstRelationship(type);
-  }
-
 
 }

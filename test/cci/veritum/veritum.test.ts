@@ -1,13 +1,15 @@
 import { Settings } from "../../../src/core/settings";
+import { coreCubeFamily } from "../../../src/core/cube/coreCube";
+import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
+import { NetConstants } from "../../../src/core/networking/networkDefinitions";
+import { enumNums } from "../../../src/core/helpers/misc";
+
 import { Cube, cciFamily } from "../../../src/cci/cube/cube";
 import { MediaTypes, FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { VerityFields } from "../../../src/cci/cube/verityFields";
 import { Veritum } from "../../../src/cci/veritum/veritum";
-import { coreCubeFamily } from "../../../src/core/cube/coreCube";
-import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
-import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { enumNums } from "../../../src/core/helpers/misc";
+import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 
 import { evenLonger, tooLong } from "../testcci.definitions";
 
@@ -326,6 +328,78 @@ describe('Veritum (basic tests)', () => {
         });  // forEach chunkNo
       });  // forEach CubeType
     });  // getKeyIfAvailable() and getKeyStringIfAvailable()
+
+    describe('relationship getters', () => {
+      let relA: Relationship, relB: Relationship, relC: Relationship;
+      let veritum: Veritum;
+      beforeAll(async () => {
+        relA = new Relationship(
+          RelationshipType.REPLY_TO,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1) as CubeKey
+        );
+        relB = new Relationship(
+          RelationshipType.MENTION,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2) as CubeKey
+        );
+        relC = new Relationship(
+          RelationshipType.MENTION,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3) as CubeKey
+        );
+        veritum = new Veritum({
+          cubeType: CubeType.PIC,
+          fields: [
+            VerityField.RelatesTo(relA),
+            applicationField,
+            mediaTypeField,
+            VerityField.RelatesTo(relB),
+            payloadField,
+            VerityField.RelatesTo(relC),
+          ],
+        });
+      });
+
+      describe('getRelationships()', () => {
+        it('returns all three relationships if no type is specified', () => {
+          const rels = veritum.getRelationships();
+          expect(rels).toHaveLength(3);
+          expect(rels[0].type).toBe(RelationshipType.REPLY_TO);
+          expect(rels[0].remoteKey).toEqual(relA.remoteKey);
+          expect(rels[1].type).toBe(RelationshipType.MENTION);
+          expect(rels[1].remoteKey).toEqual(relB.remoteKey);
+          expect(rels[2].type).toBe(RelationshipType.MENTION);
+          expect(rels[2].remoteKey).toEqual(relC.remoteKey);
+        });
+
+        it('can filter to only return MENTION relationships', () => {
+          const rels = veritum.getRelationships(RelationshipType.MENTION);
+          expect(rels).toHaveLength(2);
+          expect(rels[0].type).toBe(RelationshipType.MENTION);
+          expect(rels[0].remoteKey).toEqual(relB.remoteKey);
+          expect(rels[1].type).toBe(RelationshipType.MENTION);
+          expect(rels[1].remoteKey).toEqual(relC.remoteKey);
+        });
+      });
+
+      describe('getFirstRelationship()', () => {
+        it('returns the first relationship of any type if none is specified', () => {
+          const rel = veritum.getFirstRelationship();
+          expect(rel.type).toBe(RelationshipType.REPLY_TO);
+          expect(rel.remoteKey).toEqual(relA.remoteKey);
+        });
+
+        it('can return the first MENTION relationship', () => {
+          const rel = veritum.getFirstRelationship(RelationshipType.MENTION);
+          expect(rel.type).toBe(RelationshipType.MENTION);
+          expect(rel.remoteKey).toEqual(relB.remoteKey);
+        });
+
+        it('can return the only REPLY_TO relationship', () => {
+          const rel = veritum.getFirstRelationship(RelationshipType.REPLY_TO);
+          expect(rel.type).toBe(RelationshipType.REPLY_TO);
+          expect(rel.remoteKey).toEqual(relA.remoteKey);
+        });
+      });
+    });  // relationship getters
   });  // getters
 
 
