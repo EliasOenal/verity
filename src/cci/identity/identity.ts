@@ -519,6 +519,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     this._posts.add(key.keyString);
 
     // emit events
+    this.emitPostKeyAdded(asCubeKey(key.binaryKey));
     this.emitCubeAdded(asCubeKey(key.binaryKey));
     this.emitPostAdded(asCubeKey(key.binaryKey));
     return true;
@@ -1525,6 +1526,11 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         this.emit('postAddedCube', postInfo);
       }
     }
+  }
+
+  private async emitPostKeyAdded(key: CubeKey): Promise<void> {
+    // we always emit this even as it does not require any preperatory work
+    this.emit('postKeyAdded', key);
   }
 
   private shouldIEmit(
