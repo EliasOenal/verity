@@ -18,26 +18,8 @@ function hasPost(list: PostInfo<CoreVeritable>[], post:CoreVeritable, author?: I
 }
 
 describe('Identity: emitting postAdded / postAddedCube events', () => {
-  let idTestOptions: IdentityOptions;
-  let cubeStore: CubeStore;
-
   beforeAll(async () => {
     await sodium.ready;
-  });
-
-  beforeEach(async () => {
-    idTestOptions = {
-      minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
-      requiredDifficulty: 0,  // no hash cash for testing
-      argonCpuHardness: sodium.crypto_pwhash_OPSLIMIT_MIN,  // minimum hardness
-      argonMemoryHardness: sodium.crypto_pwhash_MEMLIMIT_MIN,  // minimum hardness
-    };
-    cubeStore = new CubeStore(testCubeStoreParams);
-    await cubeStore.readyPromise;
-  });
-
-  afterEach(async () => {
-    await cubeStore.shutdown();
   });
 
   for (const eventName of ['postAdded', 'postAddedCube']) describe(`event ${eventName}`, () => {
