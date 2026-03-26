@@ -888,7 +888,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     if (!this.privateKey || !this.masterKey) {
       throw new VerityError("Identity.store(): Cannot store an Identity whose private and master key I don't have");
     }
-    logger.trace("Identity: Storing identity " + this.name);
+    logger.trace("Identity: Storing identity " + (this.name ?? this.keyString));
     const muc = await this.marshall();
     for (const extensionMuc of this.publicSubscriptionIndices) {
       await this.cubeStore.addCube(extensionMuc);
