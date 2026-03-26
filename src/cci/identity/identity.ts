@@ -435,7 +435,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     });
     } else {  // create new Identity
       if (Settings.RUNTIME_ASSERTIONS && !(Buffer.isBuffer(mucOrMasterkey))) {
-        throw new ApiMisuseError("Identity constructor: Master key must be a Buffer");
+        throw new ApiMisuseError("Identity constructor: Master key must be a NodeJS Buffer (make sure you passed the right argument and no library [e.g. jsdom] has polluted the environment with incompatible types of Buffers)");
       }
       this._masterKey = mucOrMasterkey;
       this._muc = extensionMuc(
