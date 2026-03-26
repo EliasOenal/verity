@@ -4,7 +4,8 @@ import path from 'path';
 
 // exported for application sub-projects only
 export function frontendConfig(basepath) {
-  const libpath = path.dirname(new URL(import.meta.url).pathname);
+  let libpath = path.dirname(new URL(import.meta.url).pathname);
+  if (libpath === basepath) libpath += "/src/";
   const ret = {
     ...commonConfig,
     resolve: {
