@@ -11,7 +11,7 @@
 
 import type { CubeKey } from "../../core/cube/coreCube.definitions";
 
-import { CancellableTask } from "../helpers";
+import { CancellableTask } from "../../core/helpers/promises";
 import { keyVariants, asCubeKey } from "../../core/cube/keyUtil";
 import { CancellableGenerator, eventsToGenerator } from "../../core/helpers/asyncGenerators";
 

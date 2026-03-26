@@ -1,4 +1,4 @@
-import { CubeStore } from '../../../src/core';
+import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Cube } from '../../../src/cci/cube/cube';
 import { VerityField } from '../../../src/cci/cube/verityField';

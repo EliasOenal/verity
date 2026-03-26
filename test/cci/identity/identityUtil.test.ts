@@ -1,4 +1,4 @@
-import { CancellableTask } from '../../../src/cci/helpers';
+import { CancellableTask } from '../../../src/core/helpers/promises';
 import { Identity } from '../../../src/cci/identity/identity';
 import { verifyAuthorship } from '../../../src/cci/identity/identityUtil';
 import { asCubeKey } from '../../../src/core/cube/keyUtil';
