@@ -52,6 +52,10 @@ export interface VerityControllerOptions {
 export class VerityController implements ControllerContext {
   public contentAreaView: VerityView = undefined;
 
+
+  //###
+  //#region Getters
+  //###
   get cockpit(): Cockpit { return this.parent.cockpit }
   get identityController(): IdentityController { return this.parent.identityController }
   get node(): VerityNodeIf { return this.parent.cockpit.node }
@@ -59,12 +63,67 @@ export class VerityController implements ControllerContext {
   get identity(): Identity { return this.parent.identityController.identity }
   get identityStore(): IdentityStore { return this.parent.identityController.identityStore }
 
+  //###
+  //#endregion
+  //#region Framework to track pending async operations
+  //###
+  protected _pendingAsyncOps: Set<Promise<any>> = new Set();
+  protected _lastAsyncOp: Promise<any> = Promise.resolve();
+
+  /**
+   * Returns a read-only snapshot of the currently pending async operations.
+   * The returned set can safely be iterated over by callers without exposing
+   * the controller's internal mutable state.
+   */
+  get pendingAsyncOps(): ReadonlySet<Promise<any>> { return new Set(this._pendingAsyncOps) }
+
+  /**
+   * Returns the current number of pending async operations.
+   */
+  get pendingAsyncOpCount(): number { return this._pendingAsyncOps.size }
+
+  /**
+   * Returns the latest registered async operation.
+   */
+  get lastAsyncOp(): Promise<any> { return this._lastAsyncOp }
+
+  /**
+   * Returns a promise that resolves when all pending async operations have
+   * completed. This can be used to offer new user-initiated actions once
+   * state has settled, or for tests to assert a view is correct after all async
+   * ops.
+   */
+  get allAsyncOps(): Promise<any> { return Promise.all(this.pendingAsyncOps) }
+
+  /**
+   * Register an async operation this controller is performing.
+   * This allows us to track pending operations, which can be used e.g. to
+   * show a loading animation, or to offer a new user-initiated operation
+   * only when we no longer expect non-user-initiated changes.
+   */
+  registerAsyncOp(op: Promise<any>) {
+    this._lastAsyncOp = op;
+    this._pendingAsyncOps.add(op)
+    op.finally(() => this._pendingAsyncOps.delete(op));
+  }
+
+
+  //###
+  //#endregion
+  //#region Deprecated
+  //###
+
   /** @deprecated - Applications should prefer the cockpit API, or use this.node.cubeStore */
   get cubeStore(): CubeStore { return this.parent.cockpit.node.cubeStore }
   /** @deprecated - Applications should prefer the cockpit API, or use this.node.veritumRetriever */
   get veritumRetriever(): VeritumRetrievalInterface<CubeRequestOptions> { return this.parent.cockpit.node.veritumRetriever }
   /** @deprecated - Applications should prefer the cockpit API, or use this.node.cubeRetriever */
   get cubeRetriever(): CubeRetriever | CubeRetrievalInterface<CubeRequestOptions> { return this.parent.cockpit.node.cubeRetriever }
+
+  //###
+  //#endregion
+  //#region Construtor and misc methods
+  //###
 
   constructor(
     readonly parent: ControllerContext,
@@ -138,6 +197,9 @@ export class VerityController implements ControllerContext {
     else return new view(this, options.htmlTemplateOverride) as T;
   }
 
+  //###
+  //#endregion
+  //###
 }
 
 export class ControllerError extends UiError { name = "ControllerError" }
