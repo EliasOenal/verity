@@ -1,17 +1,20 @@
-# Introduction
-
-Verity operates as the core of a decentralized system, functioning as the foundational storage layer leveraging unique data structures known as "cubes." Each cube encapsulates 1kB of payload data, serving as the fundamental unit of information exchange synchronized across participating nodes in the Verity network.
-
-To streamline the interaction between various applications and these cubes, the Common Cube Interface (CCI) was developed. It provides a standardized format for the payload data within a cube, enabling a structured and consistent approach to data representation. This standardization fosters interoperability among different applications, facilitating a smoother and more coherent data transmission landscape in the Verity network.
-
 # Common Cube Interface (CCI)
 
-The Common Cube Interface (CCI) is a standardized payload format designed to facilitate interoperability between different applications built on the Verity network. By adhering to a common set of rules for structuring the payload data within a cube, applications can more easily share and understand the data being transmitted.
+Verity is a tiered system. The core layer provides the foundational decentralised networking and storage layer, leveraging unique data structures known as "Cubes". Each Cube encapsulates 1kB of payload data, serving as the fundamental unit of information exchange synchronised across participating nodes in the Verity network.
 
-## Overview
+The optional **Common Cube Interface (CCI)** layer provides an API streamlining the interaction between various applications and these Cubes. This standardisation fosters interoperability among different applications, facilitating a smoother and more coherent data transmission landscape in the Verity network. By adhering to a common set of rules for structuring the payload data within a cube, applications can more easily share and understand the data being transmitted.
 
-CCI describes a Type-Length-Value data structure within a Cube's Payload area.
-It also defines a common set of type numbers for standardized fields. This ensures a harmonized approach to handling payload data while allowing applications the flexibility to introduce their custom fields based on specific requirements.
+
+It provides:
+- **Verity Fields**, a standardised Type-Length-Value format for the payload data within a cube, including a standard set of type numbers for commonly used fields.
+- **Veritum**, a flexible data structure able to automatically marshal and demarshal long data sets into multiple Cubes.
+- **Veritable**, a standard interface and base implementation for Cube-compatible data structures, notably encompassing Cube itself as well as Veritum.
+- **CCI Encryption** providing confidentiality for both individual Cubes as well as Veritum, for both 1:1 and 1:n communication, both in transit and at rest.
+- **Relationship**, a standard way of referring from one Veritable to another
+- **Identity**, a common account / user profile implementation for Verity applications
+- The CCI **Cockpit**, the preferred high level API for publishing and retrieving Verita, seamlessly incorporating the Identity module and optional CCI encryption.
+
+## The Verity Fields specification
 
 ### TLV format
 
@@ -21,8 +24,6 @@ It also defines a common set of type numbers for standardized fields. This ensur
 
 3. **Value (variable length)**: This is the actual data. The length of this field is specified by the length field or is implicitly known based on the type.
 
-
-### Common Cube Interface (CCI) Field Specifications
 
 #### Field type space
 General partition of type space:
@@ -60,6 +61,14 @@ Standardized fields are defined to establish a universal foundation for payloads
 | 0x15        | Media type (short)     |   1 | Type of content in this Cube's Payload field. This short field contains a single byte code denoting commonly used media types. |
 | 0x16        | User avatar            | var | Describes an auto-generated, guaranteed safe to show avatar for this user |
 | 0x1F        | Reserved (padding)     | var | The reference implementation currently precedes padding by this code. Padding must always follow the 0x00 CCI_END marker, thus this TLV field will be disregarded anyway. |
+
+### Custom Fields
+Applications have two ways of suppplementing CCI with custom fields:
+1) Applications can define custom fields starting from `0x30` to `0x3F`.
+   These fields must be variable length.
+2) Applications can place the CCI_END marker field (0x00). Any content following
+   within the Cube will be ignored by pure CCI parsers and can be used to store
+   application data in any application-defined format.
 
 ### CCI date fields
 A five byte unix timestamp preceeded by a single byte purpose code describing
@@ -112,6 +121,7 @@ Currently defined relationship types:
 | 7    | AUTHORHINT | The referred Cube must contain a CCI Identity, which is claimed to be this Cube's author. Note that this information is not guaranteed to be true and should never be trusted as such; it is a hint only. Authenticated authorship information is provided by the CCI Identity through MYPOST rels pointing to their content. User agents should only use this hint to check if such a MYPOST rel exists, and disregard the AUTHORHINT otherwise. There must be no more than a single AUTHORHINT, and in multi-Cube Verita it must be placed in the first Cube. |
 | 11   | REPLACED_BY | This Cube should be disregarded and the referred Cube should be fetched instead. |
 | 12   | REPLACES | This Cube supersedes the referred Cube. |
+| 13   | RETRACTS | The referred Cube is invalidated and should be disregarded. |
 | 71   | ILLUSTRATION | The referred Cube contains and image that should be presented alongside this Cube's content. If this Cube describes a CCI Identity, then the referred Cube contain's this Identity's profile picture. User agents should exercise caution and refrain from displaying such referred images by untrusted Identites. |
 | 72   | KEY_BACKUP_CUBE | The referred Cube provides a way for its owner to restore it's own private key. This is currently neither used nor specified. |
 | 73   | SUBSCRIPTION_RECOMMENDATION_INDEX | The referred Cube has the same author as this Cube and is advertised as containing SUBSCRIPTION_RECOMMENDATION relationship fields. |
@@ -121,9 +131,9 @@ Codes 128 and above are reserved for application-specific usage.
 
 **Next Cube Reference**: Contains the 32-byte key of the target cube. Facilitates the assembly of content spanning multiple cubes by concatenating the field prior to this field with the first field of the same type in the referenced cube. This may be chained multiple times for content of arbitrary length.
 
-### CCI user identities
-CCI Identites describe a particular user.
-Identites must be stored in MUCs.
+## Identity
+A CCI Identity describe a particular user.
+At the core of each Identity is its root Cube, a user-owned (P)MUC type Cube.
 
 Identities populate standard CCI fields as described.
 
@@ -138,7 +148,7 @@ Identities populate standard CCI fields as described.
 | RELATED_TO/SUBSCRIPTION_RECOMMENTATION_INDEX | See CCI field description |
 | RELATED_TO/MYPOST | See CCI field description |
 
-#### Safe to show avatars
+### Safe to show avatars
 The `User avatar` field describes an auto-generatable avatar which is guaranteed
 to be safe to show. The field starts with a single byte avatar scheme code, with
 all remaining bytes to be parsed as required by the avatar scheme.
@@ -149,7 +159,7 @@ Defined schemes are (length includes scheme code):
 | Code | Length | Name             | Description                                    | How to parse                  |
 | 1    |      6 | multiavatar      | Auto-generated by the multiavatar lib          | Convert to hex string, then feed into lib |
 
-# Vertium
+## Veritum
 Verita are Verity's high level informational units.
 Most application should not deal with Cubes directly, but store and retrieve
 any information in terms of Verita.
@@ -158,22 +168,14 @@ and recombined as needed.
 Verita can optionally be encrypted for one or multiple recipients.
 
 
-# CCI Encryption
+## CCI Encryption
 Both Verita and single Cubes can optionally be encrypted using
 [CCI Encryption](cciEncryption.md).
 
 
-# Custom Fields
-Applications have two ways of suppplementing CCI with custom fields:
-1) Applications can define custom fields starting from `0x30` to `0x3F`.
-   These fields must be variable length.
-2) Applications can place the CCI_END marker field (0x00). Any content following
-   within the Cube will be ignored by pure CCI parsers and can be used to store
-   application data in any application-defined format.
-
 # Applications using CCI
 
-# File Application
+## File Application
 
 The file application is a specific implementation leveraging the Common Cube Interface (CCI) to facilitate the transmission and reception of files over the Verity network. It only supports PIC and PMUC cubes to prevent files from unexpectedly changing. It populates the `Application`, `Contentname`, `Relates_To` and `Payload` fields to form a simple linked list of Cubes that contain the file data.
 
@@ -181,7 +183,13 @@ The file application is a specific implementation leveraging the Common Cube Int
 
 > **Note**: We should detect and reject loops in the linked list. This is a potential DoS vector.
 
-# Chat Application
+### Usage
+
+When transmitting a file, the application should at minimum populate the filename and file content fields to ensure the recipient has the necessary data to reconstruct the file. The inclusion of MIME Type and metadata fields is encouraged to provide a richer set of information about the file, facilitating more nuanced handling and organization of files by the recipient application.
+
+For files that exceed the payload capacity of a single cube, the application utilizes the "Next Cube Reference" field defined in the CCI to chain multiple cubes together, allowing for the seamless assembly of larger files.
+
+## Chat Application
 
 The chat application implements basic chat room functionality on the Verity network. It works by sending notify Cubes to a notify key that serves as a chat room. The nodes participating in the chat will retrieve the most recent Cubes and render them chronologically sorted. It populates the `Application`, `Relates_To` and `Payload` and `Username` fields.
 
@@ -190,9 +198,3 @@ They optionally may reference their identity MUC using the <strike>`MYPOST`</str
 **Application Identifier**: `chat`
 
 > **Note**: Reverse iterating the notify index of a full node would improve performance when fetching the most recent Cubes.
-
-### Usage
-
-When transmitting a file, the application should at minimum populate the filename and file content fields to ensure the recipient has the necessary data to reconstruct the file. The inclusion of MIME Type and metadata fields is encouraged to provide a richer set of information about the file, facilitating more nuanced handling and organization of files by the recipient application.
-
-For files that exceed the payload capacity of a single cube, the application utilizes the "Next Cube Reference" field defined in the CCI to chain multiple cubes together, allowing for the seamless assembly of larger files.
