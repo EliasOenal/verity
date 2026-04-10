@@ -23,7 +23,7 @@ import { Peer } from '../../../src/core/peering/peer';
 import { PeerDB } from '../../../src/core/peering/peerDB';
 import { logger } from '../../../src/core/logger';
 
-import WebSocket from 'isomorphic-ws';
+import { WebSocket, WebSocketServer as NodeWebSocketServer } from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { CubeResponseMessage } from '../../../src/core/networking/networkMessage';
 
@@ -110,7 +110,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
       );
       await manager.start();
 
-      const server = new WebSocket.Server({ port: 3002 });
+      const server = new NodeWebSocketServer({ port: 3002 });
 
       // Wait for server2 to start listening
       await new Promise((resolve) => server?.on('listening', resolve));

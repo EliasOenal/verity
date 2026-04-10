@@ -8,10 +8,19 @@ import { TransportServer } from "../transportServer";
 import { AddressAbstraction, WebSocketAddress } from "../../../peering/addressing";
 import { logger } from "../../../logger";
 
-import WebSocket, { AddressInfo } from 'isomorphic-ws';
+import { WebSocket, AddressInfo } from 'isomorphic-ws';
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+
+// Web socket servers only exist on NodeJS, not on the browser
+type NodeWebSocketServerType = import("ws").WebSocketServer;
+let NodeWebSocketServer: typeof import("ws").WebSocketServer;
+if (isNode) {
+  // only import on NodeJS
+  NodeWebSocketServer = (await import("ws")).WebSocketServer;
+}
 
 export class WebSocketServer extends TransportServer {
-  private server: WebSocket.Server = undefined;
+  private server: NodeWebSocketServerType = undefined;
   constructor(
       transport: NetworkTransport,
       private port: number = 1984,
@@ -34,7 +43,7 @@ export class WebSocketServer extends TransportServer {
   }
 
   start(): Promise<void> {
-      this.server = new WebSocket.Server({ port: this.port });
+      this.server = new NodeWebSocketServer({ port: this.port });
       const listeningPromise: Promise<void> =
         new Promise<void>(resolve => this.server.on('listening', () => {
         logger.debug(`WebSocketServer: Server is listening on ${((this.server.address() as AddressInfo).address +":"+(this.server.address() as AddressInfo).port)}.`);
