@@ -62,16 +62,26 @@ describe('IdentityUtil', () => {
         passiveIdTestOptions,
       );
       const claimedPostKey = asCubeKey(Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43));
+      let task: CancellableTask<boolean>;
+      let result: boolean;
 
-      it('does not resolve unconfirmed posts until cancelled', async () => {
-        const task: CancellableTask<boolean> =
-          verifyAuthorship(claimedPostKey, identity);
+      beforeAll(async () => {
+        // run test
+        task = verifyAuthorship(claimedPostKey, identity);
         // wait a little to make sure this is actually deferred
         await new Promise((resolve) => setTimeout(resolve, 100));
         task.cancel();
-        const result: boolean = await task.promise;
+        result = await task.promise;
+      });
+
+      it('yields undefined when cancelled while a post is still unconfirmed', () => {
         expect(result).toBe(undefined);
       });
+
+      it("unsubscribes from the Identity's postKeyAdded event", () => {
+        expect(identity.listenerCount("postKeyAdded")).toBe(0);
+      });
+
     });
   });
 });

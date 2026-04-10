@@ -57,5 +57,7 @@ export function verifyAuthorship(
     // has already resolved to true and the following line will have no effect.
     task.resolve(undefined);
   });
+  // handle external cancellation
+  task.promise.then(() => confirmationGen.cancel());
   return task;
 }
