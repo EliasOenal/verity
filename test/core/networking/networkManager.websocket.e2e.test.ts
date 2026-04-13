@@ -9,7 +9,7 @@ import { WebSocketServer } from '../../../src/core/networking/transport/webSocke
 import { WebSocketConnection } from '../../../src/core/networking/transport/webSocket/webSocketConnection';
 import { NetworkPeerIf, NetworkPeerLifecycle } from '../../../src/core/networking/networkPeerIf';
 
-import { CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
+import { CubeFieldType, CubeKey, CubeType, KeyPair, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
 import { cubeContest, cubeExpiration, cubeLifetime } from '../../../src/core/cube/cubeUtil';
 import { asCubeKey } from '../../../src/core/cube/keyUtil';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
@@ -24,7 +24,7 @@ import { PeerDB } from '../../../src/core/peering/peerDB';
 import { logger } from '../../../src/core/logger';
 
 import { WebSocket, WebSocketServer as NodeWebSocketServer } from 'isomorphic-ws';
-import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import sodium from 'libsodium-wrappers-sumo'
 import { CubeResponseMessage } from '../../../src/core/networking/networkMessage';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';

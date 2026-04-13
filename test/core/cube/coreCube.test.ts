@@ -21,6 +21,11 @@ import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
+type SodiumKeyPair = {
+  publicKey: Uint8Array;
+  privateKey: Uint8Array;
+};
+
 // TODO: Add more tests. This is one of our most crucial core classes and it's
 // nowhere near fully covered.
 
@@ -49,7 +54,7 @@ describe('coreCube', () => {
     0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
   ]);
 
-  let commonKeyPair: sodium.KeyPair;
+  let commonKeyPair: SodiumKeyPair;
   let commonPublicKey: Buffer, commonPrivateKey: Buffer;
 
   beforeAll(async () => {

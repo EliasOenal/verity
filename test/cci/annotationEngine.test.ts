@@ -5,9 +5,13 @@ import { VerityField } from '../../src/cci/cube/verityField';
 import { Relationship, RelationshipType } from '../../src/cci/cube/relationship';
 import { Cube } from '../../src/cci/cube/cube';
 import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotationEngine';
-
-import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
+type SodiumKeyPair = {
+  publicKey: Uint8Array;
+  privateKey: Uint8Array;
+};
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;
@@ -74,8 +78,8 @@ describe('annotationEngine', () => {
       // CONTINUED_IN relationship as well.
       // First all of our referred cubes:
       await sodium.ready;
-      const muckeys1: KeyPair = sodium.crypto_sign_keypair();
-      const muckeys2: KeyPair = sodium.crypto_sign_keypair();
+      const muckeys1: SodiumKeyPair = sodium.crypto_sign_keypair();
+      const muckeys2: SodiumKeyPair = sodium.crypto_sign_keypair();
       const muc1 = CoreCube.MUC(Buffer.from(muckeys1.publicKey), Buffer.from(muckeys1.privateKey));
       const muc2 = CoreCube.MUC(Buffer.from(muckeys2.publicKey), Buffer.from(muckeys2.privateKey));
       const continuedin = Cube.Frozen({

@@ -13,10 +13,15 @@ const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
+type SodiumKeyPair = {
+  publicKey: Uint8Array;
+  privateKey: Uint8Array;
+};
+
 const reducedDifficulty = 0;
 
 describe('Cube', () => {
-  let commonKeyPair: sodium.KeyPair;
+  let commonKeyPair: SodiumKeyPair;
   let commonPublicKey: Buffer, commonPrivateKey: Buffer;
 
   beforeAll(async () => {
