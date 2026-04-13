@@ -18,6 +18,7 @@ export enum RelationshipType {
 
   REPLACED_BY = 11,
   REPLACES = 12,
+  RETRACTS = 13,
 
   ILLUSTRATION = 71,
   KEY_BACKUP_CUBE = 72,

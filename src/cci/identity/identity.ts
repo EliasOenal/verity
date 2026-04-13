@@ -42,6 +42,7 @@ import sodium from 'libsodium-wrappers-sumo';
 import EventEmitter from 'events';
 import * as bip39 from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
+import { Veritable } from '../cube/veritable.definition';
 
 // TODO: Split out the MUC management code.
 //   Much of it (like writing multi-cube long indexes of cube keys) are not even
@@ -570,6 +571,19 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     } else {
       logger.warn("Identity: Ignoring unsubscription request to something that does not at all look like a CubeKey");
     }
+  }
+
+  /**
+   * When using distributed inline post reference storage (i.e. storing previous
+   * post references with every new post rather than in a separate data structure,
+   * which is the only currently supported mode),
+   * this will enrich a given post with referrences to previous posts.
+   * Note that this method is *not* idempotent; on each call, it will add at
+   * least the minimum amount of post references as configured in MIN_POST_REFS.
+   * @param post
+   */
+  enrichPostWithReferences(post: Veritable): void {
+
   }
 
 

@@ -167,15 +167,19 @@ export class Veritum extends VeritableMixin(CoreVeritableBaseImplementation) imp
 
     // Feed this Veritum through the splitter -- this is the main operation
     // of compiling a Veritum.
+    const inputChunkTransformationCallback = options.chunkTransformationCallback;
     const splitOptions: SplitOptions = {
+      ...options,
       cubeType: this.cubeType,
       publicKey: this.publicKey,
       privateKey: this.privateKey,
       requiredDifficulty: this.requiredDifficulty,
       maxChunkSize: (chunkIndex: number) =>
         encryptionHelper.spacePerChunk(chunkIndex),
-      chunkTransformationCallback: (chunk: Cube, splitState: ChunkFinalisationState) =>
-        encryptionHelper.transformChunk(chunk, splitState),
+      chunkTransformationCallback: (chunk: Cube, splitState: ChunkFinalisationState) => {
+        inputChunkTransformationCallback?.(chunk, splitState);
+        encryptionHelper.transformChunk(chunk, splitState)
+      },
     }
     this._chunks = await Split(this, splitOptions);
 

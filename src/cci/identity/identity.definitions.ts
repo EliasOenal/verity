@@ -26,6 +26,14 @@ export const IDMUC_MASTERINDEX = 0;
 export const DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING = "CCI Encrpytion";
 export const DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX = 0;
 
+// Other defaults
+/**
+ * When using distributed inline post reference storage (i.e. storing previous
+ * post references with every new post rather than in a separate data structure),
+ * require at least this many previous post references.
+ */
+export const MIN_POST_REFS = 3;
+
 export interface IdentityOptions {
   /**
    * Local Identities (i.e. one owned by the user running this node, for

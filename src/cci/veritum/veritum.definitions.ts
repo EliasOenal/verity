@@ -24,13 +24,27 @@ export enum RetrievalFormat {
   Veritum
 }
 
-export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionParams {
+export interface VeritumCompileOptions
+  extends CubeCreateOptions, CciEncryptionParams, ChunkTransformationOptions
+{ }
+
+export interface VeritumFromChunksOptions
+  extends RecombineOptions, CciDecryptionParams
+{ }
+
+export interface ChunkTransformationOptions {
+  /**
+   * Optionally, a callback that will be called while each chunk is getting
+   * finalised, right before compiling it to binary data.
+   * @param chunk - The chunk being finalised
+   * @param state - The current finalisation state, including the running number
+   *   of the current chunk as well as the total number of chunk Cubes.
+   * @returns
+   */
+  chunkTransformationCallback?: (chunk: Cube, state: ChunkFinalisationState) => void;
 }
 
-export interface VeritumFromChunksOptions extends RecombineOptions, CciDecryptionParams {
-}
-
-export interface SplitOptions extends RecombineOptions {
+export interface SplitOptions extends RecombineOptions, ChunkTransformationOptions {
   /**
    * The maximum number of bytes to use in each chunk.
    * You can set this to something smaller than the cube size if you need
@@ -38,16 +52,6 @@ export interface SplitOptions extends RecombineOptions {
    * @default - A full Cube, i.e. 1024 bytes.
    */
   maxChunkSize?: (chunkIndex: number) => number;
-
-  /**
-   * Optionally, a callback that will be called while each chunk is getting
-   * finalised.
-   * @param chunk - The chunk being finalised
-   * @param state - The current finalisation state, including the running number
-   *   of the current chunk as well as the total number of chunk Cubes.
-   * @returns
-   */
-  chunkTransformationCallback?: (chunk: Cube, state: ChunkFinalisationState) => void;
 }
 
 export interface RecombineOptions extends CubeCreateOptions {
