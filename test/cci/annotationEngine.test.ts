@@ -5,13 +5,9 @@ import { VerityField } from '../../src/cci/cube/verityField';
 import { Relationship, RelationshipType } from '../../src/cci/cube/relationship';
 import { Cube } from '../../src/cci/cube/cube';
 import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotationEngine';
+import { SodiumKeyPair } from '../libsodium.test.definition';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-
-type SodiumKeyPair = {
-  publicKey: Uint8Array;
-  privateKey: Uint8Array;
-};
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;
