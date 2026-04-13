@@ -1,24 +1,25 @@
 import type { CubeKey, NotificationKey } from "../core/cube/coreCube.definitions";
+import type { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
+import type { CoreVeritable } from "../core/cube/coreVeritable.definition";
+import type { CubeCreateOptions } from '../core/cube/coreCube.definitions';
+import type { CoreCube } from "../core/cube/coreCube";
+import type { CubeInfo } from "../core/cube/cubeInfo";
+import type { CubeStore } from "../core/cube/cubeStore";
 
-import { CoreCube } from "../core/cube/coreCube";
-import { CubeCreateOptions } from '../core/cube/coreCube.definitions';
-import { CubeInfo } from "../core/cube/cubeInfo";
-import { CubeStore } from "../core/cube/cubeStore";
-import { CoreVeritable } from "../core/cube/coreVeritable.definition";
 import { asCubeKey } from "../core/cube/keyUtil";
 import { FieldPosition } from "../core/fields/baseFields";
 
-import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
+import type { Cube } from "./cube/cube";
+import type { Identity } from "./identity/identity";
+import type { ChunkFinalisationState, VeritumCompileOptions } from "./veritum/veritum.definitions";
+import type { GetVeritumOptions, VeritumRetrievalInterface } from "./veritum/veritumRetriever";
+import type { MetadataEnhancedRetrieval, ResolveRelsOptions, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritum/veritumRetrievalUtil";
 
 import { dummyVerityNode, VerityNodeIf, VerityNodeOptions } from "./verityNode";
-import { Cube } from "./cube/cube";
 import { Relationship, RelationshipType } from "./cube/relationship";
 import { VerityField } from "./cube/verityField";
-import { Identity } from "./identity/identity";
 import { Veritum } from "./veritum/veritum";
-import { VeritumCompileOptions } from "./veritum/veritum.definitions";
-import { GetVeritumOptions, VeritumRetrievalInterface } from "./veritum/veritumRetriever";
-import { MetadataEnhancedRetrieval, ResolveRelsOptions, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritum/veritumRetrievalUtil";
+import { MIN_POST_REFS } from "./identity/identity.definitions";
 
 export interface CockpitOptions {
   identity?: Identity | (() => Identity);
@@ -41,6 +42,18 @@ export interface PublishVeritumOptions extends VeritumCompileOptions {
    * @default - follows addAsPost, which itself defaults to true
    */
   addAuthorHint?: boolean;
+
+  /**
+   * If enabled, enrich this Veritum with referrences to previous posts.
+   * This only works if the user is logged in, i.e. this Cockpit has a valid
+   * Identity object.
+   * We will add a minimum of post references as per the number supplied
+   * (even if this extends the Veritum by an extra Cube), and on top of that
+   * we'll try to fill up the remaining space in the last chunk with even
+   * more references.
+   * @default - Enabled with a minimum of MIN_POST_REF refs if logged in
+  */
+  includePreviousPostRefs?: number|boolean;
 
   /**
    * The Identity this Cockpit belongs to
@@ -112,6 +125,14 @@ export class Cockpit implements VeritumRetrievalInterface {
     // Besides allowing overrides, this assignment also ensures the Identity
     // cannot change while this call is in progress (Cockpit supports Identity changes).
     options.identity = this.identity;
+    options.includePreviousPostRefs ??=
+      options.identity? MIN_POST_REFS : false;
+    if (
+      options.includePreviousPostRefs !== false &&
+      !Number.isInteger(options.includePreviousPostRefs))
+    {
+      options.includePreviousPostRefs = MIN_POST_REFS;
+    };
 
     // Add AUTHORHINT relationship if requested and we have an identity
     if (options.identity && options.addAuthorHint) {
@@ -122,6 +143,36 @@ export class Cockpit implements VeritumRetrievalInterface {
 
     // maybe TODO: When encryption is enabled, auto-add self as additional recipient
     //   by default? Sculpting Verita not readable by self seems like a trap.
+
+    // If the user is logged in, enrich the Veritum with past post references
+    // (TODO make configurable)
+    if (options.includePreviousPostRefs && options.identity) {
+      // Prepare list of post back refs
+      // TODO: find a smarter way to determine reference order than local insertion
+      //   order, as local insertion order is not guaranteed to be stable when it
+      //   has itself been restored from a MUC.
+      const postKeys: CubeKey[] =
+        Array.from(options.identity.getPostKeys());
+
+      // first add the minimum of back refs prior to compilation
+      for (let i=0; i<(options.includePreviousPostRefs as number); i++) {
+        const ref: CubeKey = postKeys.pop();
+        if (ref !== undefined) veritum.insertFieldBeforeBackPositionals(
+          VerityField.RelatesTo(RelationshipType.MYPOST, ref)
+        );
+      }
+
+      // later while compiling, fill up the last chunks with further back refs
+      const originalChunkTransformationCallback = options.chunkTransformationCallback;
+      options.chunkTransformationCallback = (chunk: Cube, splitState: ChunkFinalisationState) => {
+        originalChunkTransformationCallback?.(chunk, splitState);
+        const reversePostKeys = postKeys.reverse();
+        if (splitState.chunkIndex === splitState.chunkCount -1) {  // last chunk only
+          chunk.insertTillFull(VerityField.FromRelationships(
+            Relationship.fromKeys(RelationshipType.MYPOST, reversePostKeys)));
+        }
+      }
+    }
 
     // Compile the Veritum
     // TODO BUGBUG should not recompile the Veritum if already compiled (may change key!)
