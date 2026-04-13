@@ -221,7 +221,7 @@ export function EncryptionHashNonces(seed: Buffer, count: number): Buffer[] {
 
 export function EncryptionHashNonce(nonce: Buffer): Buffer {
   return Buffer.from(sodium.crypto_generichash(
-    sodium.crypto_secretbox_NONCEBYTES, nonce));
+    sodium.crypto_secretbox_NONCEBYTES, nonce, null));
 
 }
 
