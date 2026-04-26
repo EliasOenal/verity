@@ -161,7 +161,8 @@ describe('CCI Veritum encryption', () => {
           const ciphertext2: Buffer = veritum.chunks[1].getFirstField(
             FieldType.ENCRYPTED).value;
           const nonce2: Uint8Array = sodium.crypto_generichash(
-            sodium.crypto_secretbox_NONCEBYTES, includedNonce);
+            // Updated libsodium typings require the optional key slot explicitly.
+            sodium.crypto_secretbox_NONCEBYTES, includedNonce, null);
           const plaintext2: Uint8Array = sodium.crypto_secretbox_open_easy(
             ciphertext2, nonce2, sharedSecret);
           expect(Buffer.from(plaintext2).toString('utf-8')).toContain(

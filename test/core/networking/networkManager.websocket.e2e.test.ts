@@ -24,7 +24,7 @@ import { PeerDB } from '../../../src/core/peering/peerDB';
 import { logger } from '../../../src/core/logger';
 
 import { WebSocket, WebSocketServer as NodeWebSocketServer } from 'isomorphic-ws';
-import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import sodium from 'libsodium-wrappers-sumo'
 import { CubeResponseMessage } from '../../../src/core/networking/networkMessage';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';

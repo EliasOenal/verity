@@ -13,6 +13,7 @@ import { calculateHash, countTrailingZeroBits, paddedBuffer, verifySignature } f
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition, CoreFieldParsers } from '../../../src/core/cube/cubeFields';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
+import { SodiumKeyPair } from '../../libsodium.definition';
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
@@ -49,7 +50,7 @@ describe('coreCube', () => {
     0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
   ]);
 
-  let commonKeyPair: sodium.KeyPair;
+  let commonKeyPair: SodiumKeyPair;
   let commonPublicKey: Buffer, commonPrivateKey: Buffer;
 
   beforeAll(async () => {

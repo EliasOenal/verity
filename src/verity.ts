@@ -6,6 +6,7 @@ import { SupportedTransports } from './core/networking/networkDefinitions';
 
 import { CoreCube } from './core/cube/coreCube';
 import { CubeField } from './core/cube/cubeField';
+import { KeyPair } from './core/cube/coreCube.definitions';
 import { CoreNode, CoreNodeOptions, defaultInitialPeers } from "./core/coreNode";
 import { AddressAbstraction } from './core/peering/addressing';
 
@@ -14,7 +15,7 @@ import { FileApplication } from './app/fileApplication';
 import { logger } from './core/logger';
 import { vera } from './misc/vera';
 
-import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import sodium from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import * as fs from 'fs/promises';
@@ -271,7 +272,12 @@ async function main() {
   await sodium.ready;
   const keyPair = sodium.crypto_sign_keypair();
 
-  const client = new VerityCmdClient({ keyPair: keyPair});
+  const client = new VerityCmdClient({
+    keyPair: {
+      publicKey: Buffer.from(keyPair.publicKey),
+      privateKey: Buffer.from(keyPair.privateKey),
+    }
+  });
   await client.onlinePromise;
   logger.info("Node is online");
 
