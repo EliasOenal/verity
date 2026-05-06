@@ -1,4 +1,5 @@
 import { CubeFieldType, CubeFieldLength } from "../../core/cube/coreCube.definitions";
+import { CoreVeritable } from "../../core/cube/coreVeritable.definition";
 import { FieldNumericalParam } from "../../core/fields/fieldParser";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 

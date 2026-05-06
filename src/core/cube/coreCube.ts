@@ -1,8 +1,8 @@
-// cube.ts
+// coreCube.ts
 import { ApiMisuseError, Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
-import type { Veritable } from './veritable.definition';
+import type { CoreVeritable, CoreVeritableClass } from './coreVeritable.definition';
 
 import { FieldPosition, FieldsEqualOptions } from '../fields/baseFields';
 import { BinaryDataError, BinaryLengthError, CubeCreateOptions, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./coreCube.definitions";
@@ -20,27 +20,27 @@ import sodium from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 
 /**
- * Base class for all of our Veritable implementations, namely Cube here
- * and Veritum on the CCI layer.
+ * Base class for all of our CoreVeritable implementations, namely CoreCube here.
+ * It is indirectly also the base of Veritum on the CCI layer through the CCI
+ * layer VeritableBaseImplementation which inherits from this.
  */
 // Note: Cannot be moved to separate file as it uses coreCubeFamily as a default
 //       param, moving it would cause a circular dependency.
-export abstract class VeritableBaseImplementation implements Veritable {
-    protected _fields!: CubeFields;
+export class CoreVeritableBaseImplementation<F extends CubeFields = CubeFields> implements CoreVeritable {
+    protected _fields!: F;
     readonly options!: CubeCreateOptions;
 
-
     constructor(options: CubeCreateOptions);
-    constructor(copyFrom: VeritableBaseImplementation);
-    constructor(param1?: CubeCreateOptions|VeritableBaseImplementation);
-    constructor(param1: CubeCreateOptions|VeritableBaseImplementation = {}) {
-        if (param1 instanceof VeritableBaseImplementation) {
+    constructor(copyFrom: CoreVeritableBaseImplementation);
+    constructor(param1?: CubeCreateOptions|CoreVeritableBaseImplementation);
+    constructor(param1: CubeCreateOptions|CoreVeritableBaseImplementation = {}) {
+        if (param1 instanceof CoreVeritableBaseImplementation) {
             // copy constructor:
             // copy options object
             if (param1.options) this.options = {...param1.options};
             // copy-construct fields
-            const fieldsType = (param1._fields.constructor) as typeof CubeFields;
-            this._fields = new fieldsType(param1._fields);
+            const FieldsCtor = param1._fields.constructor as new ( fields: F ) => F;
+            this._fields = new FieldsCtor(param1._fields as F);
         } else {
             // construction from scratch
             this.options = { ...param1 };
@@ -58,7 +58,7 @@ export abstract class VeritableBaseImplementation implements Veritable {
             this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
 
             // initialise members
-            this._fields = this.normalizeFields(this.options.fields);
+            this._fields = this.normaliseFields(this.options.fields);
 
             // ensure Cube type is of a notification variant if there is a
             // NOTIFY field
@@ -109,7 +109,7 @@ export abstract class VeritableBaseImplementation implements Veritable {
         throw new ApiMisuseError("VeritableBaseImplementation subclasses must implement getKeyString()");
     }
 
-    equals(other: Veritable&VeritableBaseImplementation, options?: FieldsEqualOptions): boolean {
+    equals(other: CoreVeritable&CoreVeritableBaseImplementation, options?: FieldsEqualOptions): boolean {
         // Cubes of different types are not equal
         if (this.cubeType !== other.cubeType) return false;
 
@@ -146,7 +146,7 @@ export abstract class VeritableBaseImplementation implements Veritable {
     }
 
     fieldsEqual(
-            other: VeritableBaseImplementation,
+            other: CoreVeritableBaseImplementation,
             options: FieldsEqualOptions = {},
     ): boolean {
         return this._fields.equals(other._fields, options);
@@ -218,15 +218,18 @@ export abstract class VeritableBaseImplementation implements Veritable {
         return this._fields;
     }
 
-    protected normalizeFields(
+    protected normaliseFields(
             fields: CubeField | CubeField[] | CubeFields | undefined,
-    ): CubeFields {
-        return CubeFields.NormalizeFields(
-            fields, this.fieldParser.fieldDef) as CubeFields;
+    ): F {
+        return CubeFields.NormaliseFields(
+            fields, this.fieldParser.fieldDef) as F;
     }
-  }
+}
+// for compile-time type checking on constructor overloads only
+const coreCubeCtor: CoreVeritableClass = CoreVeritableBaseImplementation;
 
-export class CoreCube extends VeritableBaseImplementation implements Veritable {
+
+export class CoreCube extends CoreVeritableBaseImplementation implements CoreVeritable {
     /**
      * Creates a new fully valid Cube of your chosen type.
      * @param type Which type of Cube would you like?
@@ -307,7 +310,7 @@ export class CoreCube extends VeritableBaseImplementation implements Veritable {
         ) as CubeFields;
 
         // sculpt Cube
-        const cube: CoreCube = new options.family.cubeClass(options.cubeType, options);
+        const cube: CoreCube = new options.family.cubeClass(options);
 
         // on signed types, supply private key
         if (HasSignature[options.cubeType]) cube.privateKey = options.privateKey as Buffer;
@@ -388,24 +391,21 @@ export class CoreCube extends VeritableBaseImplementation implements Veritable {
         binaryData: Buffer,
         options?: CubeCreateOptions);
     /**
-     * Sculpt a new bare Cube, starting out without any fields.
+     * Sculpt a new bare core-only Cube, starting out without any fields.
      * This is only useful if for some reason you need full control even over
-     * mandatory boilerplate fields. Consider using CoreCube.Frozen or CoreCube.MUC
-     * instead, which will sculpt a fully valid frozen Cube or MUC, respectively.
+     * mandatory boilerplate fields. Consider using CoreCube.Create which will
+     * sculpt a fully valid Cube including a valid field for the chosen Cube type.
+     * Also keep in mind that applications should usually use CCI (high level)
+     * classes such as Veritum or Cube rather than CoreCube.
      **/
-    // Note: Usage of CubeCreateOptions here is not perfectly elegant,
-    //       as we require cubeType as a mandatory param and will ignore any
-    //       value supplied within options.
-    constructor(
-        cubeType: CubeType,
-        options?: CubeCreateOptions);
+    constructor(options?: CubeCreateOptions);
     /** Copy constructor: Copy an existing Cube */
     constructor(copyFrom: CoreCube);
     // Repeat implementation as declaration as calls must strictly match a
     // declaration, not the implementation (which is stupid)
-    constructor(param1: Buffer | CubeType | CoreCube, options?: CubeCreateOptions);
+    constructor(param1: Buffer | CoreCube | CubeCreateOptions, options?: CubeCreateOptions);
     constructor(
-            param1: Buffer | CubeType | CoreCube,
+            param1: Buffer | CoreCube | CubeCreateOptions,
             options?: CubeCreateOptions)
     {
         if (param1 instanceof CoreCube) {
@@ -446,9 +446,10 @@ export class CoreCube extends VeritableBaseImplementation implements Veritable {
                 this.generatePicKey();
             }
             this.validateCube();
-        } else if (param1 in CubeType) {
+        } else {
             // sculpt new Cube
-            super({...options, cubeType: param1});
+            const options: CubeCreateOptions = param1 ?? {}
+            super(options);
             if (options?.fields) {  // do we have a field set already?
                 if (!(options.fields instanceof CubeFields)) {
                     options.fields =  // upgrade to CubeFields if necessary
@@ -460,8 +461,6 @@ export class CoreCube extends VeritableBaseImplementation implements Veritable {
                 this.setFields(options.fields as CubeFields);  // set fields
             }  // no fields yet? let's just start out with an empty set then
             else this._fields = new this.fieldParser.fieldDef.fieldsObjectClass([], this.fieldParser.fieldDef);
-        } else {
-            throw new ApiMisuseError("Cube constructor: first parameter must be Buffer or CubeType");
         }
     }
 

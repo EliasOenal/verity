@@ -13,6 +13,7 @@ import { calculateHash, countTrailingZeroBits, paddedBuffer, verifySignature } f
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition, CoreFieldParsers } from '../../../src/core/cube/cubeFields';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
+import { SodiumKeyPair } from '../../libsodium.definition';
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
@@ -24,7 +25,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 // TODO: Add more tests. This is one of our most crucial core classes and it's
 // nowhere near fully covered.
 
-describe('cube', () => {
+describe('coreCube', () => {
   const requiredDifficulty = 0;
 
   // TODO: Update payload field ID. Make tests actually check payload.
@@ -49,7 +50,7 @@ describe('cube', () => {
     0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
   ]);
 
-  let commonKeyPair: sodium.KeyPair;
+  let commonKeyPair: SodiumKeyPair;
   let commonPublicKey: Buffer, commonPrivateKey: Buffer;
 
   beforeAll(async () => {
@@ -79,7 +80,7 @@ describe('cube', () => {
     }, 3000);
 
     it('construct a Cube object with no fields by default', () => {
-      const cube = new CoreCube(CubeType.FROZEN);
+      const cube = new CoreCube();
       expect(cube.fieldCount).toEqual(0);
     }, 3000);
 
@@ -140,7 +141,7 @@ describe('cube', () => {
 
   describe('setters and getters', () => {
     it('should set and get fields correctly', () => {
-      const cube = new CoreCube(CubeType.FROZEN, { requiredDifficulty: 0 });
+      const cube = new CoreCube({ cubeType: CubeType.FROZEN, requiredDifficulty: 0 });
       const fields = new CubeFields([
         CubeField.Type(CubeType.FROZEN),
         CubeField.RawContent(CubeType.FROZEN,
@@ -437,7 +438,8 @@ describe('cube', () => {
           const fields: CubeFields = CubeFields.DefaultPositionals(
             CoreFieldParsers[type].fieldDef, incompleteFieldset);
           // sculpt Cube
-          const cube: CoreCube = new CoreCube(type, {
+          const cube: CoreCube = new CoreCube({
+            cubeType: type,
             fields: fields,
             requiredDifficulty: requiredDifficulty,
           });
@@ -575,7 +577,10 @@ describe('cube', () => {
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
         // Create a new MUC with specified TLV fields
-        const muc = new CoreCube(CubeType.MUC, { requiredDifficulty: requiredDifficulty });
+        const muc = new CoreCube({
+          cubeType: CubeType.MUC,
+          requiredDifficulty: requiredDifficulty,
+        });
         muc.privateKey = privateKey;
 
         const fields = new CubeFields([

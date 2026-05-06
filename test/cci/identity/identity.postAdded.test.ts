@@ -1,15 +1,20 @@
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+import { asCubeKey } from '../../../src/core/cube/keyUtil';
+import { CoreVeritable } from '../../../src/core/cube/coreVeritable.definition';
+import { CubeKey } from '../../../src/core/cube/coreCube.definitions';
 import { RecursiveEmitter } from '../../../src/core/helpers/recursiveEmitter';
-import { IdentityOptions, PostInfo } from '../../../src/cci/identity/identity.definitions';
+
+import { PostInfo } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
-import { CubeStore } from '../../../src/core/cube/cubeStore';
-import { Veritable } from '../../../src/core/cube/veritable.definition';
+
 import { TestWordPostSet, TestWorld } from '../../app/zw/testWorld';
-import { testCubeStoreParams } from '../testcci.definitions';
+
+import { passiveIdTestOptions } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-function hasPost(list: PostInfo<Veritable>[], post: Veritable, author?: Identity): boolean {
+function hasPost(list: PostInfo<CoreVeritable>[], post:CoreVeritable, author?: Identity): boolean {
   if (list.some(item => (
     item.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable() &&
     (author? item.author.keyString === author.keyString : true)
@@ -18,36 +23,18 @@ function hasPost(list: PostInfo<Veritable>[], post: Veritable, author?: Identity
 }
 
 describe('Identity: emitting postAdded / postAddedCube events', () => {
-  let idTestOptions: IdentityOptions;
-  let cubeStore: CubeStore;
-
   beforeAll(async () => {
     await sodium.ready;
-  });
-
-  beforeEach(async () => {
-    idTestOptions = {
-      minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
-      requiredDifficulty: 0,  // no hash cash for testing
-      argonCpuHardness: sodium.crypto_pwhash_OPSLIMIT_MIN,  // minimum hardness
-      argonMemoryHardness: sodium.crypto_pwhash_MEMLIMIT_MIN,  // minimum hardness
-    };
-    cubeStore = new CubeStore(testCubeStoreParams);
-    await cubeStore.readyPromise;
-  });
-
-  afterEach(async () => {
-    await cubeStore.shutdown();
   });
 
   for (const eventName of ['postAdded', 'postAddedCube']) describe(`event ${eventName}`, () => {
     for (const lvl of [0, 1, 2, 3, 1337]) describe(`recursion level ${lvl} correctness`, () => {
       let w: TestWorld;
-      let posts: PostInfo<Veritable>[];  // note Veritable comprises both Veritum and Cube
+      let posts: PostInfo<CoreVeritable>[];  // note Veritable comprises both Veritum and Cube
       let emitter: RecursiveEmitter;
 
-      const handler: (postInfo: PostInfo<Veritable>) => void =
-        (postInfo: PostInfo<Veritable>) => posts.push(postInfo);
+      const handler: (postInfo: PostInfo<CoreVeritable>) => void =
+        (postInfo: PostInfo<CoreVeritable>) => posts.push(postInfo);
 
       beforeAll(async () => {
         // prepare test data
@@ -207,4 +194,46 @@ describe('Identity: emitting postAdded / postAddedCube events', () => {
   // separate RecursiveEmitter object to handle our subscription's posts, and
   // this object will not be notified about changes in subscription status.
   describe.todo('will automatically emit posts from newly added subscriptions');
+});
+
+
+describe('Identity: emitting postKeyAdded events', () => {
+  const identity = new Identity(
+    undefined,  // no CubeStore or anything required for these trivial tests
+    Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 83),  // random master key
+    passiveIdTestOptions
+  );
+
+  let emitted: CubeKey[] = [];
+
+  beforeEach(() => {
+    emitted = [];
+    identity.on('postKeyAdded', (key: CubeKey) => {
+      emitted.push(key);
+    });
+  });
+
+  afterEach(() => {
+    identity.removeAllListeners('postKeyAdded');
+  });
+
+  it('emits postKeyAdded events when valid post keys are learned', async () => {
+    // add three valid post keys
+    const validKey1 = asCubeKey(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41));
+    const validKey2 = asCubeKey(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42));
+    const validKey3 = asCubeKey(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43));
+    identity.addPost(validKey1);
+    identity.addPost(validKey2);
+    identity.addPost(validKey3);
+
+    // assert three events emitted
+    expect(emitted[0].equals(validKey1)).toBe(true);
+    expect(emitted[1].equals(validKey2)).toBe(true);
+    expect(emitted[2].equals(validKey3)).toBe(true);
+  });
+
+  // none of the following are currently implemented, addPost() just blindly
+  // adds anything it gets fed to the post list and emits without any validation
+  it.todo('does not emit for invalid keys');
+  it.todo('does not emit duplicate keys');
 });

@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import webpack from 'webpack';
+import path from 'path';
 
 const { resolve } = createRequire(import.meta.url);
 
@@ -8,28 +9,14 @@ export const commonConfig = {
   module: {
     rules: [
       {
-        test: /\.ts?$/,
+        test: /\.ts$/,
         use: {
           loader: 'ts-loader',
           options: {
-            configFile: 'tsconfig.json',
-            compilerOptions: {
-              noEmit: false,
-            }
+            // keeping an empty options object so that client can add their own options
           },
         },
         exclude: /node_modules/,
-      },
-      {
-        test: /\.ts?$/,
-        use: {
-          loader: 'ts-loader',
-          options: {
-            allowTsInNodeModules: true, // Allow processing files in node_modules
-            configFile: 'tsconfig.build.json'
-          },
-        },
-        include: /node_modules\/verity\/src/, // Only include files in node_modules/verity/src
       },
       {
         test: /\.m?js/,
@@ -40,17 +27,18 @@ export const commonConfig = {
       {
         test: /\.html$/,
         use: 'raw-loader',
-        exclude: ["/node_modules/", "/src/webui/static/"],
+        exclude: /node_modules/,
       },
       {
         test: /\.css$/,
         use: 'raw-loader',
-        exclude: ["/node_modules/", "/src/webui/static/"],
+        exclude: /node_modules/,
       },
     ],
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
+    symlinks: true,
     enforceExtension: false,
     fallback: {
       url: resolve('url'),

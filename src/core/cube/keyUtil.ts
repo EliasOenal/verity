@@ -5,9 +5,9 @@ import { CubeKey, NotificationKey } from "./coreCube.definitions";
 
 import { Buffer } from 'buffer';
 
-export interface KeyVariants {
+export interface KeyVariants<T extends Buffer = Buffer> {
     keyString: string;
-    binaryKey: Buffer;
+    binaryKey: T;
 }
 /**
  * This is a normalisation helper accepting binary data in either its string
@@ -18,17 +18,22 @@ export interface KeyVariants {
  */
 // maybe TODO optimise: return an object that lazily performs the conversion in
 //   the getter to avoid unnecessary conversions
-export function keyVariants(keyInput: Buffer | string | String): KeyVariants {
+export function keyVariants<T extends Buffer | string | String>(
+  keyInput: T,
+): KeyVariants<T extends Buffer ? T : Buffer> {
     if (!keyInput) return undefined;  // input sanity check
-    let keyString: string, binaryKey: Buffer;
+    let keyString: string, binaryKey: T;
     if (Buffer.isBuffer(keyInput)) {
       keyString = keyInput.toString('hex');
       binaryKey = keyInput;
     } else {
       keyString = keyInput.toString();  // this gets rid of any "String" object we might have -- TODO: I'm not sure if this is efficient
-      binaryKey = Buffer.from(keyInput as string, 'hex');
+      binaryKey = Buffer.from(keyInput as string, 'hex') as T;
     }
-    return {keyString: keyString, binaryKey: binaryKey};
+    return {
+      keyString: keyString,
+      binaryKey: binaryKey as (T extends Buffer ? T : Buffer)
+    };
 }
 
 /** Wrapper to create a type-safe branded CubeKey */

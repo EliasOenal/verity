@@ -3,9 +3,21 @@ import CopyWebpackPlugin from 'copy-webpack-plugin';
 import path from 'path';
 
 // exported for application sub-projects only
-export function frontendConfig(basepath, libpath=basepath+"/node_modules/@veritycloud/verity/") {
+export function frontendConfig(basepath) {
+  let libpath = path.dirname(new URL(import.meta.url).pathname);
+  if (libpath === basepath) libpath += "/src/";
   const ret = {
     ...commonConfig,
+    resolve: {
+      // add an alias for @veritycloud/verity;
+      // this is to make it work for environments in which the full uncompiled
+      // verity source is used rather than js-compiled npm package
+      ...commonConfig.resolve,
+      alias: {
+        ...(commonConfig.resolve?.alias || {}),
+        '@veritycloud/verity': libpath
+      }
+    },
     output: {
       filename: '[name].js',
       path: path.resolve(basepath, './distweb'),

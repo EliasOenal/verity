@@ -1,34 +1,35 @@
-import type { Veritable } from "../../core/cube/veritable.definition";
+import type { Veritable } from "../cube/veritable.definition";
 
-import { VeritableBaseImplementation } from "../../core/cube/coreCube";
+import { CoreVeritableBaseImplementation } from "../../core/cube/coreCube";
 import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/coreCube.definitions";
 import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
-
-import { Cube, cciFamily } from "../cube/cube";
-import { Relationship, RelationshipType } from "../cube/relationship";
-import { VerityFields } from "../cube/verityFields";
-import { Split, Recombine } from "./continuation";
-import { SplitOptions, ChunkFinalisationState } from "./veritum.definitions";
-import { ChunkDecrypt, ChunkEncryptionHelper } from "./veritumEncryption";
-
 import { logger } from "../../core/logger";
+
+import { Cube, VeritableMixin, cciFamily } from "../cube/cube";
+import { Relationship, RelationshipType } from "../cube/relationship";
+import { Split, Recombine } from "./continuation";
+import { VeritumCreateOptions, VeritumFromChunksOptions, VeritumCompileOptions, SplitOptions, ChunkFinalisationState } from "./veritum.definitions";
+import { ChunkDecrypt, ChunkEncryptionHelper } from "./veritumEncryption";
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
-import { VeritumCreateOptions, VeritumFromChunksOptions, VeritumCompileOptions } from "./veritum.definitions";
 
 // TODO: Provide an own configurable equals() method with sensible defaults
 //   to allow semantic comparisons between Verita as well as between Verita
 //   and Cubes.
 
-export class Veritum extends VeritableBaseImplementation implements Veritable{
+/**
+ * Veritum is the preferred high-level unit of data to by used by Verity
+ * applications. It is a variable-length collection of fields, and will be
+ * compiled into one or many Cubes to be published on the Verity network.
+ * Note: Multi-Cube Verita are only supported for non-signed Cube types (PIC,
+ * FROZEN and their notification variants), but not for signed types (MUC, PMUC).
+ */
+export class Veritum extends VeritableMixin(CoreVeritableBaseImplementation) implements Veritable {
   private _chunks: Cube[];
   get chunks(): Iterable<Cube> { return this._chunks }
 
   declare options: VeritumCreateOptions;
-
-  get publicKey(): Buffer { return this.options.publicKey }
-  get privateKey(): Buffer { return this.options.privateKey }
 
   private _keyChunkNo: number = 0;
   /**
@@ -70,19 +71,13 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     if (param1 instanceof Veritum) {
       // copy constructor
       const copyFrom: Veritum = param1;
-      const options = {
-        // We'll keep the original's options
-        ...copyFrom.options,
-        // but we'll make a shallow copy of its fields object.
-        fields: new VerityFields(copyFrom._fields as VerityFields, (copyFrom._fields as VerityFields).fieldDefinition),
-      }
-      super({...options, cubeType: copyFrom.cubeType});
+      // base class takes care of copying fields and stuff
+      super(copyFrom);
+      // copy chunks (those are Veritum-specific, so the base class can't handle them)
       this._chunks = copyFrom._chunks ?? [];
     } else {
       // creating new Veritum
       const options: VeritumCreateOptions = param1;
-      options.family ??= cciFamily;
-      options.cubeType ??= DEFAULT_CUBE_TYPE;
       super(options);
       this._chunks = this.options.chunks ?? [];
     }
@@ -201,15 +196,5 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     }
     return this._chunks;
   }
-
-  // Note: The following two methods have been copied from cciCube.
-  //   That's not perfectly DRY, but come on, they're single line methods.
-  getRelationships(type?: RelationshipType): Array<Relationship> {
-    return (this._fields as VerityFields).getRelationships(type);
-  }
-  public getFirstRelationship(type?: number): Relationship {
-    return (this._fields as VerityFields).getFirstRelationship(type);
-  }
-
 
 }

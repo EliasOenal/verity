@@ -40,11 +40,12 @@ export interface FieldsEqualOptions {
 // definition. Within BaseFields, the field definition is currently *only* used in getByteLength()
 // and in the insert before/after positionals methods.
 export class BaseFields {  // cannot make abstract, FieldParser creates temporary BaseField objects
-    static NormalizeFields(
-            fields: BaseField | BaseField[] | BaseFields | undefined,
+    static NormaliseFields<T extends typeof BaseFields>(
+            this: T,
+            fields: BaseField | BaseField[] | BaseFields | InstanceType<T> | undefined,
             fieldDefinition: FieldDefinition,
-    ): BaseFields {
-        if (fields instanceof BaseFields) return fields;
+    ): InstanceType<T> {
+        if (fields instanceof this) return fields as InstanceType<T>;
         else if (fields instanceof BaseField) {
             return new fieldDefinition.fieldsObjectClass([fields], fieldDefinition);
         }

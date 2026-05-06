@@ -8,13 +8,14 @@ import { eventsToGenerator, mergeAsyncGenerators, resolveAndYield } from '../../
 import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
 import { logger } from '../../core/logger';
 
-import { Veritable } from '../../core/cube/veritable.definition';
+import { CoreVeritable } from '../../core/cube/coreVeritable.definition';
 import { CoreCube } from '../../core/cube/coreCube';
 import { asCubeKey, KeyVariants, keyVariants } from '../../core/cube/keyUtil';
 import { CubeStore } from '../../core/cube/cubeStore';
 import { CubeEmitter, CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeKey, CubeType } from '../../core/cube/coreCube.definitions';
+import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
 import { FieldLength, FieldType } from '../cube/cube.definitions';
 import { KeyMismatchError, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
@@ -31,7 +32,7 @@ import { GetVeritumOptions, VeritumRetrievalInterface } from '../veritum/veritum
 import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../veritum/veritumRetrievalUtil';
 
 import { DEFAULT_IDMUC_APPLICATION_STRING, DEFAULT_IDMUC_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX, DEFAULT_MIN_MUC_REBUILD_DELAY, DEFAULT_SUBSCRIPTION_RECURSION_DEPTH, GetPostsGenerator, GetPostsOptions, GetRecursiveEmitterOptions, IdentityEvents, IdentityLoadOptions, IdentityOptions, IDMUC_MASTERINDEX, PostFormatEventMap, PostInfo, RecursiveRelResolvingGetPostsGenerator, RelResolvingGetPostsGenerator } from './identity.definitions';
-import { deriveIdentityMasterKey, deriveIdentityRootCubeKeypair, validateIdentityRoot } from './identityUtil';
+import { deriveIdentityMasterKey, deriveIdentityRootCubeKeypair, validateIdentityRoot } from './identityHelpers';
 import { IdentityPersistence } from './identityPersistence';
 import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 import { IdentityStore } from './identityStore';
@@ -421,12 +422,6 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     this.options.idmucApplicationString ??= DEFAULT_IDMUC_APPLICATION_STRING;
     this.options.idmucEncryptionContextString ??= DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING;
 
-    // Subscribe to remote Identity updates (i.e. same user using multiple devices)
-    // TODO network-subscribe and write test for it
-    if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
-      this.cubeStore?.on("cubeAdded", this.mergeRemoteChanges);
-    }
-
     // are we loading or creating an Identity?
     if (mucOrMasterkey instanceof CoreCube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
       this.demarshall(mucOrMasterkey).then(() => {
@@ -435,7 +430,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     });
     } else {  // create new Identity
       if (Settings.RUNTIME_ASSERTIONS && !(Buffer.isBuffer(mucOrMasterkey))) {
-        throw new ApiMisuseError("Identity constructor: Master key must be a Buffer");
+        throw new ApiMisuseError("Identity constructor: Master key must be a NodeJS Buffer (make sure you passed the right argument and no library [e.g. jsdom] has polluted the environment with incompatible types of Buffers)");
       }
       this._masterKey = mucOrMasterkey;
       this._muc = extensionMuc(
@@ -447,6 +442,26 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       );
       this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
       this.fullyParsedPromiseResolve(this);
+    }
+
+    // Subscribe to remote Identity updates (i.e. same user using multiple devices)
+    if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
+      // TODO: We should probably just require subscribeCube() in
+      //   CubeRetrievalInterface, including an option to yield the current
+      //   version
+      // listen for root Cube updates
+      if (this.cubeStore) {
+        // process incoming changes; this should always work unless this
+        // Identity has been constructed without any Cube storage access
+        // whatsoever
+        this.cubeStore?.on?.("cubeAdded", this.mergeRemoteChanges);
+      }
+      if ((this.cubeRetriever as CubeRetriever)?.requestScheduler) {
+        // network-subscribe to remote changes
+        (this.cubeRetriever as CubeRetriever).requestScheduler.subscribeCube(this.key);
+        // re-retrieve root Cube to ensure we're on the current version
+        (this.cubeRetriever as CubeRetriever).requestScheduler.requestCube(this.key);
+      }
     }
 
     // ensure we are present in the IdentityStore
@@ -519,6 +534,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     this._posts.add(key.keyString);
 
     // emit events
+    this.emitPostKeyAdded(asCubeKey(key.binaryKey));
     this.emitCubeAdded(asCubeKey(key.binaryKey));
     this.emitPostAdded(asCubeKey(key.binaryKey));
     return true;
@@ -693,9 +709,9 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           transform = (postInfo: PostInfo<any>) => {
             const ret = resolveRels(
               postInfo.main,
-              retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<Veritable>,
+              retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<CoreVeritable>,
               { ...options },
-            ) as ResolveRelsResult & PostInfo<Veritable>;
+            ) as ResolveRelsResult & PostInfo<CoreVeritable>;
             // Merge native PostInfo data (i.e. authorship) back in
             ret.author = postInfo.author;
             return ret;
@@ -705,9 +721,9 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           transform = (postInfo: PostInfo<any>) => {
             const ret = resolveRelsRecursive(
               postInfo.main,
-              retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<Veritable>,
+              retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<CoreVeritable>,
               { ...options },
-            ) as ResolveRelsRecursiveResult & PostInfo<Veritable>;
+            ) as ResolveRelsRecursiveResult & PostInfo<CoreVeritable>;
             // Merge native PostInfo data (i.e. authorship) back in
             ret.author = postInfo.author;
             return ret;
@@ -887,7 +903,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     if (!this.privateKey || !this.masterKey) {
       throw new VerityError("Identity.store(): Cannot store an Identity whose private and master key I don't have");
     }
-    logger.trace("Identity: Storing identity " + this.name);
+    logger.trace("Identity: Storing identity " + (this.name ?? this.keyString));
     const muc = await this.marshall();
     for (const extensionMuc of this.publicSubscriptionIndices) {
       await this.cubeStore.addCube(extensionMuc);
@@ -1525,6 +1541,11 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         this.emit('postAddedCube', postInfo);
       }
     }
+  }
+
+  private async emitPostKeyAdded(key: CubeKey): Promise<void> {
+    // we always emit this even as it does not require any preperatory work
+    this.emit('postKeyAdded', key);
   }
 
   private shouldIEmit(

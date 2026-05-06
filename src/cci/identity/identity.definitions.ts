@@ -208,6 +208,36 @@ export interface GetRecursiveEmitterOptions {
 }
 
 export interface IdentityEvents extends CubeEmitterEvents {
+  /**
+   * Whenever a post is added to this Identity's post list -- no matter
+   * whether if it's an actual new post by a local application or a post
+   * no matter how old that we just managed to retrieve from the network --
+   * this emits the whole (potentially very large) post as a Veritum wrapped
+   * in a PostInfo object.
+   * Note that obviously posts which we learn of but are not currently
+   * and fully retrievable will not be emitted.
+   */
   postAdded: [PostInfo<Veritum>];
+
+  /**
+   * Whenever a post is added to this Identity's post list -- no matter
+   * whether if it's an actual new post by a local application or a post
+   * no matter how old that we just managed to retrieve from the network --
+   * this emits the post's first Cube wrapped in a PostInfo object.
+   * Note that obviously posts which we learn of but are not currently
+   * retrievable will not be emitted. However, this will always emit once
+   * a posts's first Cube is retrieved, even if it belongs to a partially
+   * unretrievable multi-Cube post.
+   */
   postAddedCube: [PostInfo<CoreCube>];
+
+  /**
+   * Whenever a post is added to this Identity's post list -- no matter
+   * whether if it's an actual new post by a local application or a post
+   * no matter how old that we just managed to retrieve from the network --
+   * this emits the post's key.
+   * Note that for this event to be emitted, it does not matter whether the
+   * post is actually retrievable.
+   */
+  postKeyAdded: [CubeKey];
 }

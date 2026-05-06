@@ -1,6 +1,6 @@
 import type { CubeKey } from "../../core/cube/coreCube.definitions";
 import type { Veritum } from "./veritum";
-import type { Veritable } from "../../core/cube/veritable.definition";
+import type { CoreVeritable } from "../../core/cube/coreVeritable.definition";
 
 import { Relationship, RelationshipType } from "../cube/relationship";
 import { GetVeritumOptions } from "./veritumRetriever";
@@ -24,7 +24,7 @@ export interface MetadataEnhancedRetrieval<MainType> {
   isDone: boolean;
 
   // All other properties should be of an application-specific enhancement type;
-  // e.g. Promise<Veritable>[] for resolveRels.
+  // e.g. Promise<CoreVeritable>[] for resolveRels.
   // However, neither me nor my AI assistants could up with a sensible type
   // declaration for this.
 };
@@ -39,7 +39,7 @@ interface RetrievalMetadata {
    *   - If the depth limit has been reached
    *   - If an encluded Veritable has been encountered
    *   - If a circular reference has been encountered
-   *     (which is technically the same thing as an excluded Veritable)
+   *     (which is technically the same thing as an excluded CoreVeritable)
    * Note that if you limit resolution to certain types of references using
    *   the relTypes option, allResolved will become true as soon as those have
    *   been retrieved, as any other references will be disregarded.
@@ -55,14 +55,14 @@ interface RetrievalMetadata {
 }
 
 type RelResult = {
-  [key in number]: Promise<Veritable>[];
+  [key in number]: Promise<CoreVeritable>[];
 }
-export interface ResolveRelsResult<T = Veritable>
+export interface ResolveRelsResult<T = CoreVeritable>
   extends MetadataEnhancedRetrieval<T>, RelResult, RetrievalMetadata
 { }
 
 /** Returns an almost valid initialization of ResolveRelsResult, just without the done promise */
-export function emptyResolveRelsResult(main: Veritable): Partial<ResolveRelsResult> {
+export function emptyResolveRelsResult(main: CoreVeritable): Partial<ResolveRelsResult> {
   const ret: Partial<ResolveRelsResult> = {
     main,
     isDone: false,
@@ -76,7 +76,7 @@ export function emptyResolveRelsResult(main: Veritable): Partial<ResolveRelsResu
 type RecursiveRelResult = {
   [key in number]: Promise<ResolveRelsRecursiveResult>[];
 }
-export interface ResolveRelsRecursiveResult<T = Veritable>
+export interface ResolveRelsRecursiveResult<T = CoreVeritable>
   extends MetadataEnhancedRetrieval<T>, RecursiveRelResult, RetrievalMetadata
 {
   /**
@@ -96,7 +96,7 @@ export interface ResolveRelsRecursiveResult<T = Veritable>
 }
 
 /** Returns an almost valid initialization of ResolveRelsRecursiveResult, just without the done promise */
-export function emptyResolveRelsRecursiveResult(main: Veritable): Partial<ResolveRelsRecursiveResult> {
+export function emptyResolveRelsRecursiveResult(main: CoreVeritable): Partial<ResolveRelsRecursiveResult> {
   const partial: Partial<ResolveRelsResult> = emptyResolveRelsResult(main);
   const ret: Partial<ResolveRelsRecursiveResult> = {
     ...partial,
@@ -125,8 +125,8 @@ export interface ResolveRelsOptions {
 
 
 export function resolveRels(
-  main?: Veritable,
-  retrievalFn?: (key: CubeKey, options: GetVeritumOptions|Object) => Promise<Veritable>,
+  main?:CoreVeritable,
+  retrievalFn?: (key: CubeKey, options: GetVeritumOptions|Object) => Promise<CoreVeritable>,
   options: ResolveRelsOptions = {},
 ): ResolveRelsResult {
   // Set default options
@@ -150,7 +150,7 @@ export function resolveRels(
   //   It still works though as we only call getRelationships() if it exists.
   const rels: Iterable<Relationship> = (main as Veritum).getRelationships?.();
 
-  const donePromises: Promise<Veritable>[] = [];
+  const donePromises: Promise<CoreVeritable>[] = [];
   for (const rel of rels) {
     if (!options.relTypes.includes(rel.type)) continue;
     // retrieve referred Veritable
@@ -166,7 +166,7 @@ export function resolveRels(
     // Add this promise to array of done promises
     donePromises.push(promise);
   }
-  ret.done = Promise.all(donePromises).then((retrievalResults: Veritable[]) => {
+  ret.done = Promise.all(donePromises).then((retrievalResults: CoreVeritable[]) => {
     ret.isDone = true;
     ret.resolutionFailure = retrievalResults.some(veritum => veritum === undefined);
     ret.allResolved = !ret.resolutionFailure;
@@ -203,8 +203,8 @@ export interface ResolveRelsRecursiveOptions extends ResolveRelsOptions {
  *   containing a retrieval promise for each reference.
  */
 export function resolveRelsRecursive(
-  main?: Veritable,
-  retrievalFn?: (key: CubeKey, options: GetVeritumOptions) => Promise<Veritable>,
+  main?:CoreVeritable,
+  retrievalFn?: (key: CubeKey, options: GetVeritumOptions) => Promise<CoreVeritable>,
   options: ResolveRelsRecursiveOptions = {},
 ): ResolveRelsRecursiveResult {
   // Set the default recursion limit if not specified.
@@ -236,7 +236,7 @@ export function resolveRelsRecursive(
   // recursive resolution.
   // (Note: By our definition, RelationshipTypes are numeric properties, e.g. '1', '2', etc.)
   for (const relKey of Object.keys(directRels).filter(key => Number.parseInt(key))) {
-    const directPromises: Promise<Veritable>[] = directRels[relKey] || [];
+    const directPromises: Promise<CoreVeritable>[] = directRels[relKey] || [];
     result[relKey] = directPromises.map((promise) =>
       promise.then(async (veritable) => {
         // First of all: Were we able to resolve this Veritable?

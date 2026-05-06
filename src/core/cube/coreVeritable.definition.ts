@@ -1,11 +1,19 @@
 import type { BaseField } from "../fields/baseField";
 import type { BaseFields, FieldPosition } from "../fields/baseFields";
 import type { FieldDefinition, FieldParser } from "../fields/fieldParser";
-import { VeritableBaseImplementation } from "./coreCube";
-import type { CubeKey, CubeType } from "./coreCube.definitions";
+import type { CoreVeritableBaseImplementation } from "./coreCube";
+import type { CubeCreateOptions, CubeKey, CubeType } from "./coreCube.definitions";
 import type { CubeFamilyDefinition } from "./cubeFields";
 
-export interface Veritable {
+/**
+ * A Veritable is any Cube-like structure that has the same basic properties as
+ * a Cube, e.g. is based on fields, is identifies by a unique key, which in turn
+ * depends on the Cube type it is based on.
+ * While CoreCube is the only type of Veritable on the Verity core layer, the CCI
+ * layer adds additional types of Veritable, such as the (extended CCI-level) Cube
+ * and the multi-Cube Veritum.
+ */
+export interface CoreVeritable {
   //###
   // Methods regarding the structure as a whole
   //###
@@ -39,7 +47,7 @@ export interface Veritable {
   getKey(): Promise<CubeKey>;
   getKeyString(): Promise<string>;
 
-  equals(other: Veritable&VeritableBaseImplementation): boolean;
+  equals(other: CoreVeritable&CoreVeritableBaseImplementation): boolean;
 
   /**
    * All veritable structures need to be compiled before they can be
@@ -59,7 +67,7 @@ export interface Veritable {
    * @returns True if the other structure has the same fields with the same
    *   values in the same order, false otherwise.
    **/
-  fieldsEqual(other: Veritable&VeritableBaseImplementation): boolean;
+  fieldsEqual(other: CoreVeritable&CoreVeritableBaseImplementation): boolean;
 
   get fieldCount(): number;
 
@@ -142,3 +150,10 @@ export interface Veritable {
    **/
   manipulateFields(): BaseFields;
 };
+
+// Additional interface only used for type checking a CoreVeritable's
+// implementation to verify it has all required constructor signatures.
+export interface CoreVeritableClass {
+  new(options: CubeCreateOptions): CoreVeritable;
+  new(copyFrom: CoreVeritableBaseImplementation): CoreVeritable;
+}

@@ -10,7 +10,7 @@ import { FieldType } from "../cube/cube.definitions";
 import { VerityField } from "../cube/verityField";
 import { VerityFields } from "../cube/verityFields";
 import { Relationship, RelationshipType } from "../cube/relationship";
-import { Veritable } from "../../core/cube/veritable.definition";
+import { CoreVeritable } from "../../core/cube/coreVeritable.definition";
 import { Veritum } from "./veritum";
 
 import { Buffer } from 'buffer'
@@ -45,7 +45,7 @@ const DefaultMapFieldToChunk: Map<number, number> = new Map([
  * @returns An array of chunk Cubes
  */
 export async function Split(
-  veritum: Veritable,
+  veritum:CoreVeritable,
   options?: SplitOptions,
 ): Promise<Cube[]> {
   const splitter = new Splitter(veritum, options);
@@ -70,7 +70,7 @@ export async function Split(
  */
 class Splitter {
   // input members
-  private veritum: Veritable;
+  private veritum:CoreVeritable;
   private cubeType: CubeType;
   private options: SplitOptions = {};
   private macroFieldset: DoublyLinkedList<VerityField>
@@ -93,7 +93,7 @@ class Splitter {
   private refs: VerityField[] = [];
 
 
-  constructor(veritum: Veritable, options: SplitOptions = {}) {
+  constructor(veritum:CoreVeritable, options: SplitOptions = {}) {
     // set member attributes
     this.veritum = veritum;
     this.cubeType = veritum.cubeType;

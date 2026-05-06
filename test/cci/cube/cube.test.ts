@@ -6,6 +6,7 @@ import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature, Notif
 import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
+import { SodiumKeyPair } from "../../libsodium.definition";
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
@@ -15,8 +16,8 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 
 const reducedDifficulty = 0;
 
-describe('cciCube', () => {
-  let commonKeyPair: sodium.KeyPair;
+describe('Cube', () => {
+  let commonKeyPair: SodiumKeyPair;
   let commonPublicKey: Buffer, commonPrivateKey: Buffer;
 
   beforeAll(async () => {
@@ -28,7 +29,7 @@ describe('cciCube', () => {
 
   describe('setFields()', () => {
     it('should set and get fields correctly', () => {
-      const cube = new Cube(CubeType.FROZEN);
+      const cube = new Cube({ cubeType: CubeType.FROZEN });
       const fields = new VerityFields([
         VerityField.Type(CubeType.FROZEN),
         VerityField.Payload("Ero celeber Cubus cum compilatus fuero."),
@@ -46,7 +47,7 @@ describe('cciCube', () => {
       // everything is fixed size anyway and will throw way before setFields()
       // if sizes don't match.
       // TODO: Move to CCI tests
-      const cube = new Cube(CubeType.FROZEN);
+      const cube = new Cube({ cubeType: CubeType.FROZEN });
       const fields = new VerityFields([
         VerityField.Type(CubeType.FROZEN),
         new VerityField(FieldType.PAYLOAD, Buffer.alloc(8020)),

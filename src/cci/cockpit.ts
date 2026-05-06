@@ -4,7 +4,7 @@ import { CoreCube } from "../core/cube/coreCube";
 import { CubeCreateOptions } from '../core/cube/coreCube.definitions';
 import { CubeInfo } from "../core/cube/cubeInfo";
 import { CubeStore } from "../core/cube/cubeStore";
-import { Veritable } from "../core/cube/veritable.definition";
+import { CoreVeritable } from "../core/cube/coreVeritable.definition";
 import { asCubeKey } from "../core/cube/keyUtil";
 import { FieldPosition } from "../core/fields/baseFields";
 
@@ -87,14 +87,14 @@ export class Cockpit implements VeritumRetrievalInterface {
   /**
    * Publish an existing Veritum.
    **/
-  publishVeritum(veritum: Veritable, options?: PublishVeritumOptions): Promise<Veritum>;
+  publishVeritum(veritum:CoreVeritable, options?: PublishVeritumOptions): Promise<Veritum>;
   /**
    * Create and publish a new Veritum.
    */
   publishVeritum(options: PublishVeritumOptions): Promise<Veritum>;
 
   // maybe TODO: Ensure Cubes have actually been synced to the network?
-  publishVeritum(param1: Veritable|PublishVeritumOptions, param2: PublishVeritumOptions = {}): Promise<Veritum> {
+  publishVeritum(param1:CoreVeritable|PublishVeritumOptions, param2: PublishVeritumOptions = {}): Promise<Veritum> {
     let veritum: Veritum;
     let options: PublishVeritumOptions;
     if (param1 instanceof Veritum) {
@@ -210,7 +210,7 @@ export class Cockpit implements VeritumRetrievalInterface {
   }
   // Pass-through method to implement CubeRetrievalInterface --
   // TODO: implement enhancement features like auto-decrypt
-  getNotifications(recipientKey: NotificationKey | string): AsyncGenerator<Veritable> {
+  getNotifications(recipientKey: NotificationKey | string): AsyncGenerator<CoreVeritable> {
     return this.node.veritumRetriever.getNotifications(recipientKey);
   }
 

@@ -2,7 +2,7 @@ import type { CubeKey, GetCubeOptions, NotificationKey } from "./coreCube.defini
 import type { CoreCube } from "./coreCube";
 import type { CubeInfo } from "./cubeInfo";
 import type { CubeStore } from "./cubeStore";
-import type { Veritable } from "./veritable.definition";
+import type { CoreVeritable } from "./coreVeritable.definition";
 import type { Sublevels } from "./levelBackend";
 
 import type { EventEmitter } from "events";
@@ -15,7 +15,7 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
   getCube<cubeClass extends CoreCube>(key: CubeKey | string, options?: OptionsType): Promise<cubeClass>;
   expectCube(keyInput: CubeKey | string): Promise<CubeInfo>; // maybe TODO: add timeout?
-  getNotifications(recipientKey: NotificationKey | string, options?: {}): AsyncGenerator<Veritable>;
+  getNotifications(recipientKey: NotificationKey | string, options?: {}): AsyncGenerator<CoreVeritable>;
   cubeStore: CubeStore;
 }
 

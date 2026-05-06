@@ -27,6 +27,10 @@ export const idTestOptions: IdentityOptions = {
   argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
   argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
 };
+export const passiveIdTestOptions: IdentityOptions = {
+  ...idTestOptions,
+  subscribeRemoteChanges: false,
+};
 
 export const testCciOptions: VerityNodeOptions | IdentityOptions = {
   ...testCoreOptions,

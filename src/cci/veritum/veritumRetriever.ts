@@ -3,7 +3,7 @@ import type { Shuttable } from "../../core/helpers/coreInterfaces";
 import type { CoreCube } from "../../core/cube/coreCube";
 import type { CubeInfo } from "../../core/cube/cubeInfo";
 import type { CubeRequestOptions, RequestScheduler } from "../../core/networking/cubeRetrieval/requestScheduler";
-import type { Veritable } from "../../core/cube/veritable.definition";
+import type { CoreVeritable } from "../../core/cube/coreVeritable.definition";
 import type { CubeStore } from "../../core/cube/cubeStore";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import type { Cube } from "../cube/cube";
@@ -25,7 +25,7 @@ export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> ext
 
   // HACKHACK: subscribeNotifications() should actually be mandated by
   //   CubeRetrievalInterface, but CubeStore does not yet implement it
-  subscribeNotifications(keyInput: NotificationKey | string, options?: GetNotificationsOptions): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
+  subscribeNotifications(keyInput: NotificationKey | string, options?: GetNotificationsOptions): CancellableGenerator<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>>;
 }
 
 export interface GetVeritumOptions extends CubeRequestOptions, ResolveRelsOptions {
@@ -274,7 +274,7 @@ export class VeritumRetriever
   async *getNotifications(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions = {},
-  ): AsyncGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+  ): AsyncGenerator<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>> {
     // set default options
     options.format ??= RetrievalFormat.Veritum;
 
@@ -306,7 +306,7 @@ export class VeritumRetriever
       p.then((value) => [value, p] as [Veritum, Promise<Veritum>]);
 
     // Helper function to yield one notification Veritum as soon as we have it in full.
-    async function yieldOne(retriever: VeritumRetriever): Promise<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+    async function yieldOne(retriever: VeritumRetriever): Promise<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>> {
       // Wait for the fastest promise in the pending set.
       // Wrap each pending promise so that it resolves with a tuple [value, originalPromise].
       const wrappedPromises = Array.from(pending).map(wrapPromise);
@@ -424,7 +424,7 @@ export class VeritumRetriever
   subscribeNotifications(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions = {},
-  ): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+  ): CancellableGenerator<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>> {
     // set default options
     options.format ??= RetrievalFormat.Veritum;
 
@@ -456,7 +456,7 @@ export class VeritumRetriever
 
 
   // Create an empty cancellable generator for when subscriptions aren't supported
-  private createEmptySubscriptionGenerator(): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+  private createEmptySubscriptionGenerator(): CancellableGenerator<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>> {
     const generator = this.createEmptySubscriptionGeneratorInternal();
 
     // Add cancel method to make it properly cancellable
@@ -464,10 +464,10 @@ export class VeritumRetriever
       // Nothing to cancel for an empty generator
     };
 
-    return generator as CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
+    return generator as CancellableGenerator<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>>;
   }
 
-  private async *createEmptySubscriptionGeneratorInternal(): AsyncGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+  private async *createEmptySubscriptionGeneratorInternal(): AsyncGenerator<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>> {
     // Empty generator - never yields anything since there's no subscription capability
     return;
     // This line is unreachable but satisfies TypeScript's requirement for generators
@@ -476,7 +476,7 @@ export class VeritumRetriever
   private createVeritumSubscriptionGenerator(
     cubeNotifications: CancellableGenerator<CoreCube>,
     options: GetNotificationsOptions,
-  ): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+  ): CancellableGenerator<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>> {
     const generator = this.createVeritumSubscriptionGeneratorInternal(cubeNotifications, options);
 
     // Add cancel method to make it properly cancellable
@@ -484,13 +484,13 @@ export class VeritumRetriever
       cubeNotifications.cancel();
     };
 
-    return generator as CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
+    return generator as CancellableGenerator<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>>;
   }
 
   private async *createVeritumSubscriptionGeneratorInternal(
     cubeNotifications: CancellableGenerator<CoreCube>,
     options: GetNotificationsOptions,
-  ): AsyncGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+  ): AsyncGenerator<CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>> {
     try {
       for await (const rootChunk of cubeNotifications) {
         try {
@@ -499,7 +499,7 @@ export class VeritumRetriever
           const result = await this.getVeritum(key, options as any);
 
           // The result is already enhanced if metadata was requested
-          yield result as Veritable|MetadataEnhancedRetrieval<Veritable>;
+          yield result as CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable>;
         } catch (error) {
           // Log error but continue processing other notifications
           logger.error(`VeritumRetriever.subscribeNotifications(): Error processing notification root chunk: ${error}`);
@@ -730,9 +730,9 @@ export class VeritumRetriever
   }
 
   private enhanceMetadata(
-    veritable: Veritable,
+    veritable:CoreVeritable,
     options: GetVeritumOptions,
-  ): Veritable|MetadataEnhancedRetrieval<Veritable> {
+  ):CoreVeritable|MetadataEnhancedRetrieval<CoreVeritable> {
     // Shall we enhance the result with metadata?
     if (!options.metadata) return veritable;  // nope, we're good
 
@@ -759,7 +759,7 @@ export class VeritumRetriever
     }
     // - None of that? Craft an empty meta data object then I guess.
     else {
-      const ret: MetadataEnhancedRetrieval<Veritable> = {
+      const ret: MetadataEnhancedRetrieval<CoreVeritable> = {
         main: veritable,
         done: Promise.resolve(),
         isDone: true,
