@@ -55,6 +55,7 @@ async function initializeLightNodeTest(): Promise<void> {
       cockpit: cockpit,  // Add cockpit for cube creation
       VerityField: VerityField,  // Export VerityField for Playwright tests
       cciCube: Cube, // Expose Cube class for direct CCI cube creation tests (parity with full-node test app)
+      Cube: Cube,   // Also expose as 'Cube' for playwright-utils compatibility
       Peer: Peer,  // Export Peer class for connections
       WebSocketAddress: WebSocketAddress,  // Export WebSocketAddress class for connections
       testUtils: {

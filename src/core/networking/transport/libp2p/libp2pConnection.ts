@@ -7,17 +7,22 @@ import { AddressAbstraction } from "../../../peering/addressing";
 import { logger } from "../../../logger";
 
 import { Connection, Stream } from '@libp2p/interface'
-import type { IncomingStreamData } from '@libp2p/interface'
-import { Multiaddr } from '@multiformats/multiaddr'
+import type { Multiaddr } from '@multiformats/multiaddr'
 
 import { Uint8ArrayList } from 'uint8arraylist'
 import { Buffer } from 'buffer';
-import { lpStream, LengthPrefixedStream } from 'it-length-prefixed-stream'
+import { lpStream, type LengthPrefixedStream } from '@libp2p/utils'
+
+/** Replaces the removed IncomingStreamData type from libp2p v2 */
+interface IncomingStreamData {
+  stream: Stream;
+  connection: Connection;
+}
 
 
 export class Libp2pConnection extends TransportConnection {
   conn: Connection = undefined;
-  stream: LengthPrefixedStream;
+  stream: LengthPrefixedStream<Stream>;
   rawStream: Stream;
 
   constructor(

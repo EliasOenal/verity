@@ -13,7 +13,7 @@ export const commonConfig = {
         use: {
           loader: 'ts-loader',
           options: {
-            // keeping an empty options object so that client can add their own options
+            transpileOnly: true,
           },
         },
         exclude: /node_modules/,

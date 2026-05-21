@@ -1,7 +1,7 @@
 import { SupportedTransports, AddressError } from "../networking/networkDefinitions";
 import { logger } from "../logger";
 
-import { Multiaddr, multiaddr } from '@multiformats/multiaddr'
+import { type Multiaddr, multiaddr, isMultiaddr } from '@multiformats/multiaddr'
 
 export class AddressAbstraction {
   public addr: WebSocketAddress | Multiaddr;
@@ -42,7 +42,7 @@ export class AddressAbstraction {
       } else if (addr instanceof WebSocketAddress) {
           this.addr = addr;
           this.type = SupportedTransports.ws;
-      } else if ('getPeerId' in addr) {  // "addr typeof Multiaddr"
+      } else if (isMultiaddr(addr)) {
           this.addr = addr;
           this.type = SupportedTransports.libp2p;
       } else {
@@ -65,7 +65,12 @@ export class AddressAbstraction {
   get ip(): string {
       try {
           if (this.addr instanceof WebSocketAddress) return this.addr.address;
-          else return this.addr.nodeAddress().address;
+          else {
+              const components = (this.addr as Multiaddr).getComponents();
+              const ipComponent = components.find(c =>
+                c.name === 'ip4' || c.name === 'ip6' || c.name === 'dns4' || c.name === 'dns6');
+              return ipComponent?.value;
+          }
       } catch(error) {
           logger.error("AddressAbstraction.ip: Error getting address: " + error);
           return undefined;
@@ -75,7 +80,12 @@ export class AddressAbstraction {
   get port(): number {
       try {
           if (this.addr instanceof WebSocketAddress) return this.addr.port;
-          else return this.addr.nodeAddress().port;
+          else {
+              const components = (this.addr as Multiaddr).getComponents();
+              const portComponent = components.find(c =>
+                c.name === 'tcp' || c.name === 'udp');
+              return portComponent?.value ? parseInt(portComponent.value, 10) : undefined;
+          }
       } catch(error) {
           logger.error("AddressAbstraction.port: Error getting address: " + error);
           return undefined;
