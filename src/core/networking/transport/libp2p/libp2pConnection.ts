@@ -161,7 +161,16 @@ export class Libp2pConnection extends TransportConnection {
           break;
         }
       }
-      if (!connStillInUse) await this.conn.close();
+      if (!connStillInUse) {
+        try {
+          await this.conn.close();
+        } catch(err) {
+          // In libp2p v3 the underlying encrypted stream may close between our
+          // status check and the actual close() call, yielding a StreamStateError.
+          // This is harmless — the connection is already torn down.
+          logger.trace(`${this.toString()} in close(): Error closing libp2p connection (likely already closed): ${err?.toString() ?? err}`);
+        }
+      }
     }
   }
 
