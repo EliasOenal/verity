@@ -4,7 +4,7 @@ import { TransportServer } from "../transportServer";
 import { Libp2pConnection } from "./libp2pConnection";
 import { logger } from "../../../logger";
 
-import type { IncomingStreamData } from '@libp2p/interface'
+import type { Stream, Connection } from '@libp2p/interface'
 
 export class Libp2pServer extends TransportServer {
   private listen: string[] = [];
@@ -16,7 +16,7 @@ export class Libp2pServer extends TransportServer {
   async start(): Promise<void> {
     await (this.transport as Libp2pTransport).node.handle(
       "/verity/1.0.0",
-      (incomingStreamData: IncomingStreamData) => this.handleIncoming(incomingStreamData));
+      (stream: Stream, connection: Connection) => this.handleIncoming(stream, connection));
     logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + (this.transport as Libp2pTransport).node.getMultiaddrs().toString());
     // logger.info("Transports are: " + this.server.components.transportManager.getTransports());
   }
@@ -34,11 +34,11 @@ export class Libp2pServer extends TransportServer {
   }
 
   /** @emits "incomingConnection": Libp2pConnection */
-  private handleIncoming(incomingStreamData: IncomingStreamData): void {
+  private handleIncoming(stream: Stream, connection: Connection): void {
     try {
-      logger.trace(`Libp2pServer.handleIncoming(): Incoming connection from ${incomingStreamData.connection.remoteAddr.toString()}`);
+      logger.trace(`Libp2pServer.handleIncoming(): Incoming connection from ${connection.remoteAddr.toString()}`);
       const conn: Libp2pConnection =
-        new Libp2pConnection(incomingStreamData, this.transport as Libp2pTransport);
+        new Libp2pConnection({ stream, connection }, this.transport as Libp2pTransport);
       this.emit("incomingConnection", conn);
     } catch (error) {
       logger.warn(`Libp2pServer.handleIncoming(): Error while handling incoming connection: ${error}`);
