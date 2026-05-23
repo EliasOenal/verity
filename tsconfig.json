@@ -5,7 +5,7 @@
     "strict": false,
     "esModuleInterop": true,
     "outDir": "./dist",
-    "moduleResolution": "Node",
+    "moduleResolution": "bundler",
     "lib": ["ES2022", "dom", "dom.iterable"],
     "sourceMap": true,
     "typeRoots": [

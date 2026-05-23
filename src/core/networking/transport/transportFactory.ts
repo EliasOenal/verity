@@ -9,6 +9,7 @@ import { WebSocketConnection } from "./webSocket/webSocketConnection";
 import { DummyNetworkTransport } from "../testingDummies/dummyNetworkTransport";
 
 import { AddressAbstraction, WebSocketAddress } from "../../peering/addressing";
+import { isMultiaddr } from '@multiformats/multiaddr';
 
 // Putting this stuff in a separate module rather than using static methods
 // to avoid circular dependencies
@@ -46,7 +47,7 @@ return transports;
 export function createNetworkPeerConnection(address: AddressAbstraction, transports: TransportMap) {
   if (address.addr instanceof WebSocketAddress) {
       return new WebSocketConnection(address.addr)
-  } else if ('getPeerId' in address.addr) {  // "addr instanceof Multiaddr"
+  } else if (isMultiaddr(address.addr)) {  // "addr instanceof Multiaddr"
       if (!transports.has(SupportedTransports.libp2p)) {
         throw new AddressError("To create a libp2p connection the libp2p node object must be supplied and ready.");
       }

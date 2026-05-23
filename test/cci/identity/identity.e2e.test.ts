@@ -1,5 +1,5 @@
-import { SupportedTransports } from "../../../src/core/networking/networkDefinitions";
-import { CubeKey } from "../../../src/core/cube/coreCube.definitions";
+import { NetConstants, SupportedTransports } from "../../../src/core/networking/networkDefinitions";
+import { CubeFieldType, CubeKey } from "../../../src/core/cube/coreCube.definitions";
 import { keyVariants } from "../../../src/core/cube/keyUtil";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { CubeRetriever } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
@@ -16,10 +16,11 @@ import { Avatar, AvatarScheme } from "../../../src/cci/identity/avatar";
 
 import { makePost } from "../../../src/app/zw/model/zwUtil";
 
-import { idTestOptions, testCubeStoreParams } from "../testcci.definitions";
+import { idTestOptions, passiveIdTestOptions, testCubeStoreParams } from "../testcci.definitions";
 
 import sodium from "libsodium-wrappers-sumo";
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { FieldType } from "../../../src/cci/cube/cube.definitions";
 
 const reducedDifficulty = 0;  // no hash cash for testing
 
@@ -38,13 +39,15 @@ describe('Identity: end-to-end tests', () => {
     requestTimeout: 500,
   };
   let local: NetworkManager;
-  let remote: NetworkManager;
   let cubeRetriever: CubeRetriever;
 
-  let cubeStore: CubeStore;
+  let remote: NetworkManager;
+  let remoteRetriever: CubeRetriever;
 
-  beforeEach(async() => {
+  beforeAll(async() => {
     await sodium.ready;
+
+    // spawn local node
     local = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
@@ -54,6 +57,8 @@ describe('Identity: end-to-end tests', () => {
       }
     );
     cubeRetriever = new CubeRetriever(local.cubeStore, local.scheduler);
+
+    // spawn remote node
     remote = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
@@ -63,16 +68,18 @@ describe('Identity: end-to-end tests', () => {
       }
     );
     await Promise.all([local.start(), remote.start()]);
+    remoteRetriever = new CubeRetriever(remote.cubeStore, remote.scheduler);
+
+    // connect nodes
     const np: NetworkPeerIf =
       local.connect(new Peer(new WebSocketAddress("localhost", 18102)));
     await np.onlinePromise;
   });
 
-  afterEach(async() => {
+  afterAll(async() => {
     await Promise.all([local.shutdown(), remote.shutdown()]);
   });
 
-  // TODO: This test sporadically fails (restored post count too low) and I have no idea why
   it('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
     // just preparing some test constants and containers
     const TESTPOSTCOUNT = 40;
@@ -198,6 +205,66 @@ describe('Identity: end-to-end tests', () => {
       }
     }
   }, 5000);
+
+  it('self-updates on construction', async() => {
+    // Let's say there's a user logging in on both the local and the remote
+    // node. They originally create the Identity on local, giving it version 1.
+    // Then, they retrieve the Identity on remove and make an update, giving it
+    // version 2.
+    // When re-creating the Identity on the local node, it should automatically
+    // update to version 2.
+
+    // Test prep on local node:
+    // create a new Identity (version 1)
+    const masterKey: Buffer = Buffer.from(
+      sodium.randombytes_buf(sodium.crypto_kdf_KEYBYTES));
+    const initial: Identity = new Identity(cubeRetriever, masterKey, idTestOptions);
+    initial.name = "versio prima";
+    await initial.store();
+    // verify test setup
+    const intialCube = await cubeRetriever.getCube(initial.key);
+    expect(intialCube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT)
+      .value.readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toBe(1);
+    expect(intialCube.getFirstField(FieldType.USERNAME).valueString).toBe("versio prima");
+    await initial.shutdown();
+
+    // Test prep on remote node:
+    // Reconstruct the Identity
+    const onRemote = new Identity(remoteRetriever, masterKey, idTestOptions);
+    await onRemote.fullyParsed;
+    // verify test setup
+    const initialSynced = await remoteRetriever.getCube(onRemote.key);
+    expect(initialSynced.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT)
+      .value.readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toBe(1);
+    expect(initialSynced.getFirstField(FieldType.USERNAME).valueString).toBe("versio prima");
+    // make update
+    onRemote.name = "versio secunda";
+    onRemote.supplyMasterKey(masterKey);
+    await onRemote.store();
+    // verify test setup
+    const remoteUpdated = await remoteRetriever.getCube(onRemote.key);
+    expect(remoteUpdated.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT)
+      .value.readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toBe(2);
+    expect(remoteUpdated.getFirstField(FieldType.USERNAME).valueString).toBe("versio secunda");
+    await onRemote.shutdown();
+
+    // Perform test:
+    // Reconstruct the Identity on the local node
+    const onLocal = new Identity(cubeRetriever, masterKey, idTestOptions);
+    await onLocal.fullyParsed;
+    // wait for propagation
+    await new Promise(resolve => setTimeout(resolve, 200));
+    // verify test setup
+    const localUpdated = await cubeRetriever.getCube(onLocal.key);
+    expect(localUpdated.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT)
+      .value.readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toBe(2);
+    expect(localUpdated.getFirstField(FieldType.USERNAME).valueString).toBe("versio secunda");
+    // expect update to have been incorporated in the reconstructed Identity
+    expect(onLocal.name).toBe("versio secunda");
+    expect(onLocal.muc.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT)
+      .value.readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toBe(2);
+    await onLocal.shutdown();
+  });
 
   // This should work since we started using PMUCs rather than regular MUCs
   it.todo('will not lose existing data if another node logs and stores into the same account without retrieving the current version');

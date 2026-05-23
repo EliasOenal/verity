@@ -15,8 +15,6 @@ import { circuitRelayTransport, circuitRelayServer } from "@libp2p/circuit-relay
 import { identify } from "@libp2p/identify";
 import { ping } from "@libp2p/ping";
 import type { Libp2p } from "@libp2p/interface";
-import * as filters from '@libp2p/websockets/filters'
-import { createServer } from 'https';
 import { readFileSync } from 'fs';
 
 import { isNode } from "browser-or-node";
@@ -86,20 +84,16 @@ export class Libp2pTransport extends NetworkTransport {
     // Single WebSockets transport; enable HTTPS if any /wss listener is configured
     const hasWss = isNode && this.listen.some(l => l.includes('/wss') || l.includes('/tls'));
     if (hasWss) {
-      const httpsServer = createServer({
-        // TODO HACKHACK: do something other than hardcoding a cert file name.
-        // Literally anything else.
-        cert: readFileSync('./cert.pem'),
-        key: readFileSync('./key.pem'),
-      });
       transports.push(webSockets({
-        filter: filters.all,
-        https: httpsServer,
+        https: {
+          // TODO HACKHACK: do something other than hardcoding a cert file name.
+          // Literally anything else.
+          cert: readFileSync('./cert.pem'),
+          key: readFileSync('./key.pem'),
+        },
       }));
     } else {
-      transports.push(webSockets({
-        filter: filters.all,
-      }));
+      transports.push(webSockets());
     }
 
     // webRTC (standard WebRTC with circuit relay)
@@ -234,7 +228,7 @@ export class Libp2pTransport extends NetworkTransport {
       // route might be available.
     }
     for (const multiaddr of this.node.getMultiaddrs()) {  // TODO rename multiaddr, it conflicts with the multiaddr() creation method (actually not strictly in conflict due to scoping but still confusing)
-      const protos: string[] = multiaddr.protoNames();
+      const protos: string[] = multiaddr.getComponents().map(c => c.name);
 
       // Check for WebRTC-Direct addresses (preferred for direct connections)
       if (protos.includes("p2p") && protos.includes("webrtc-direct")) {

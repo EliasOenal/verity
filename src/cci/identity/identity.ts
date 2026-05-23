@@ -15,6 +15,7 @@ import { CubeStore } from '../../core/cube/cubeStore';
 import { CubeEmitter, CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeKey, CubeType } from '../../core/cube/coreCube.definitions';
+import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
 import { FieldLength, FieldType } from '../cube/cube.definitions';
 import { KeyMismatchError, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
@@ -421,12 +422,6 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     this.options.idmucApplicationString ??= DEFAULT_IDMUC_APPLICATION_STRING;
     this.options.idmucEncryptionContextString ??= DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING;
 
-    // Subscribe to remote Identity updates (i.e. same user using multiple devices)
-    // TODO network-subscribe and write test for it
-    if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
-      this.cubeStore?.on("cubeAdded", this.mergeRemoteChanges);
-    }
-
     // are we loading or creating an Identity?
     if (mucOrMasterkey instanceof CoreCube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
       this.demarshall(mucOrMasterkey).then(() => {
@@ -447,6 +442,26 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       );
       this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
       this.fullyParsedPromiseResolve(this);
+    }
+
+    // Subscribe to remote Identity updates (i.e. same user using multiple devices)
+    if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
+      // TODO: We should probably just require subscribeCube() in
+      //   CubeRetrievalInterface, including an option to yield the current
+      //   version
+      // listen for root Cube updates
+      if (this.cubeStore) {
+        // process incoming changes; this should always work unless this
+        // Identity has been constructed without any Cube storage access
+        // whatsoever
+        this.cubeStore?.on?.("cubeAdded", this.mergeRemoteChanges);
+      }
+      if ((this.cubeRetriever as CubeRetriever)?.requestScheduler) {
+        // network-subscribe to remote changes
+        (this.cubeRetriever as CubeRetriever).requestScheduler.subscribeCube(this.key);
+        // re-retrieve root Cube to ensure we're on the current version
+        (this.cubeRetriever as CubeRetriever).requestScheduler.requestCube(this.key);
+      }
     }
 
     // ensure we are present in the IdentityStore
