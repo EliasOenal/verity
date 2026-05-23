@@ -4,6 +4,7 @@ import { FieldType } from "../../src/cci/cube/cube.definitions";
 import { RelationshipType } from "../../src/cci/cube/relationship";
 import { VerityField } from "../../src/cci/cube/verityField";
 import { Identity } from "../../src/cci/identity/identity";
+import { MIN_POST_REFS } from "../../src/cci/identity/identity.definitions";
 import { Veritum } from "../../src/cci/veritum/veritum";
 import { CubeType } from "../../src/core/cube/coreCube.definitions";
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
@@ -379,5 +380,116 @@ describe('cci Cockpit', () => {
 
     });  // block of tests for both logged-in and logged-out users
   }  // for (const loggedIn of [true, false])
+
+  describe('additional tests for the logged in state only', () => {
+    let node: VerityNodeIf;
+    let identity: Identity;
+    let cockpit: Cockpit;
+
+    beforeEach(async () => {
+      node = dummyVerityNode();
+      await node.readyPromise;
+      identity = new Identity(node.cubeStore, masterKey, idTestOptions);
+      cockpit = new Cockpit(node, {identity: identity});
+    });
+
+    afterEach(async () => {
+      await identity.shutdown();
+      await node.shutdown();
+    });
+
+    async function publishOwnPosts(count: number): Promise<Veritum[]> {
+      const posts: Veritum[] = [];
+      for (let i=0; i<count; i++) {
+        posts.push(await cockpit.publishVeritum({
+          cubeType: CubeType.FROZEN,
+          fields: VerityField.Payload(`Seed post ${i}`),
+          requiredDifficulty,
+          includePreviousPostRefs: false,
+          addAuthorHint: false,
+        }));
+      }
+      return posts;
+    }
+
+    describe('previous post referencing', () => {
+      describe('feature enabled (default)', () => {
+        it('adds at least the minimum number of references to previous posts', async () => {
+          // Seed the Identity with a post history large enough to exceed the minimum.
+          const previousPosts = await publishOwnPosts(MIN_POST_REFS + 2);
+          const previousKeys = await Promise.all(previousPosts.map((post) => post.getKey()));
+          const previousKeyStrings = new Set(previousKeys.map((key) => key.toString('hex')));
+
+          // Publish a fresh post with the default enrichment enabled.
+          const veritum = await cockpit.publishVeritum({
+            cubeType: CubeType.FROZEN,
+            fields: VerityField.Payload("Post with automatic back references"),
+            requiredDifficulty,
+          });
+
+          // The new post should link back to at least the minimum number of older posts.
+          const references = veritum.getRelationships(RelationshipType.MYPOST);
+          expect(references.length).toBeGreaterThanOrEqual(MIN_POST_REFS);
+
+          // Do not assume a specific ordering strategy, only that all references
+          // point to known earlier posts and never to the post being published now.
+          const ownKey = await veritum.getKey();
+          for (const ref of references) {
+            expect(previousKeyStrings.has(ref.remoteKey.toString('hex'))).toBe(true);
+            expect(ref.remoteKey.equals(ownKey)).toBe(false);
+          }
+        });
+
+        it('uses all available previous posts when there are fewer than the minimum', async () => {
+          // Seed fewer previous posts than the enrichment minimum.
+          const previousPosts = await publishOwnPosts(MIN_POST_REFS - 1);
+          const previousKeys = await Promise.all(previousPosts.map((post) => post.getKey()));
+          const previousKeyStrings = new Set(previousKeys.map((key) => key.toString('hex')));
+
+          // Publish a fresh post while explicitly keeping enrichment enabled.
+          const veritum = await cockpit.publishVeritum({
+            cubeType: CubeType.FROZEN,
+            fields: VerityField.Payload("Post with short history"),
+            requiredDifficulty,
+            includePreviousPostRefs: true,
+          });
+
+          // With no more history available, every reference should point to one
+          // of the seeded posts and all seeded posts should be represented.
+          const references = veritum.getRelationships(RelationshipType.MYPOST);
+          const referencedKeyStrings = new Set(
+            references.map((rel) => rel.remoteKey.toString('hex'))
+          );
+          expect(referencedKeyStrings).toEqual(previousKeyStrings);
+        });
+      });
+
+      describe('feature disabled', () => {
+        it('does not add previous post references when includePreviousPostRefs is false', async () => {
+          // Seed a post history to prove the opt-out is actually taking effect.
+          await publishOwnPosts(MIN_POST_REFS + 2);
+          const latinBraggary = "Post without back references";
+
+          // Publish a normal post with enrichment explicitly disabled.
+          const veritum = await cockpit.publishVeritum({
+            cubeType: CubeType.FROZEN,
+            fields: VerityField.Payload(latinBraggary),
+            requiredDifficulty,
+            includePreviousPostRefs: false,
+          });
+
+          // The post should still compile and publish like any other Veritum.
+          const cube = await node.cubeStore.getCube(await veritum.getKey());
+          expect(cube.cubeType).toBe(CubeType.FROZEN);
+          expect(cube.getFirstField(FieldType.PAYLOAD).valueString).toEqual(latinBraggary);
+          expect(identity.hasPost(await veritum.getKey())).toBe(true);
+
+          // The only behavior change is that no MYPOST back references are added.
+          expect(veritum.getRelationships(RelationshipType.MYPOST)).toHaveLength(0);
+        });
+      });
+    });
+
+  });
 
 });
