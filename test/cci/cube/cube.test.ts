@@ -6,6 +6,7 @@ import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature, Notif
 import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
+import { SodiumKeyPair } from "../../libsodium.definition";
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
@@ -16,7 +17,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 const reducedDifficulty = 0;
 
 describe('Cube', () => {
-  let commonKeyPair: sodium.KeyPair;
+  let commonKeyPair: SodiumKeyPair;
   let commonPublicKey: Buffer, commonPrivateKey: Buffer;
 
   beforeAll(async () => {
