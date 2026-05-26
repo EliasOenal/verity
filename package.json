@@ -95,7 +95,7 @@
     "level": "10.0.0",
     "libp2p": "^3.3.1",
     "libsodium-sumo": "^0.8.4",
-    "libsodium-wrappers-sumo": "^0.8.0",
+    "libsodium-wrappers-sumo": "^0.8.4",
     "memory-level": "3.1.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
