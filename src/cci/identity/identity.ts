@@ -550,13 +550,15 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   addPublicSubscription(remoteIdentity: CubeKey | string | Identity): Promise<void> {
     const key: string = Identity.KeyStringOf(remoteIdentity);
     if (key) {
-      this._publicSubscriptions.add(key);
-      // emit event
-      this.emitCubeAdded(key);
+      if (!this._publicSubscriptions.has(key)) {
+        this._publicSubscriptions.add(key);
+        // emit events
+        this.emitCubeAdded(key);
+        this.emit("subscriptionAdded", key);
 
-      // TODO: ensure that any existing RecursiveEmitters as well as any
-      //   getPosts() generators are updated to emit/yield from the new sub
-
+        // TODO: ensure that any existing RecursiveEmitters as well as any
+        //   getPosts() generators are updated to emit/yield from the new sub
+      }
       return Promise.resolve();
     } else {
       logger.warn("Identity: Ignoring subscription request to something that does not at all look like a CubeKey");
@@ -568,6 +570,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     const key: string = Identity.KeyStringOf(remoteIdentity);
     if (key) {
       this._publicSubscriptions.delete(key);
+      this.emit("subscriptionRemoved", key);
     } else {
       logger.warn("Identity: Ignoring unsubscription request to something that does not at all look like a CubeKey");
     }

@@ -248,4 +248,16 @@ export interface IdentityEvents extends CubeEmitterEvents {
    * post is actually retrievable.
    */
   postKeyAdded: [CubeKey];
+
+  /**
+   * Whenever a new subscription is added to this Identity's subscription list
+   * the key of the Identity subscribed to is emitted.
+   */
+  subscriptionAdded: [string];
+
+  /**
+   * Whenever a subscription is removed from this Identity's subscription list
+   * the key of the Identity previously subscribed to is emitted.
+   */
+  subscriptionRemoved: [string];
 }
