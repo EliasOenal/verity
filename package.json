@@ -78,7 +78,7 @@
     "@libp2p/webrtc": "^6.0.23",
     "@libp2p/websockets": "^10.1.13",
     "@multiavatar/multiavatar": "^1.0.7",
-    "@scure/bip39": "1.6.0",
+    "@scure/bip39": "2.2.0",
     "@types/node": "^24.10.1",
     "abstract-level": "^3.0.1",
     "bencodec": "^3.0.1",
