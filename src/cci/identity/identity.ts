@@ -31,7 +31,7 @@ import { Veritum } from '../veritum/veritum';
 import { GetVeritumOptions, VeritumRetrievalInterface } from '../veritum/veritumRetriever';
 import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../veritum/veritumRetrievalUtil';
 
-import { DEFAULT_IDMUC_APPLICATION_STRING, DEFAULT_IDMUC_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX, DEFAULT_MIN_MUC_REBUILD_DELAY, DEFAULT_SUBSCRIPTION_RECURSION_DEPTH, GetPostsGenerator, GetPostsOptions, GetRecursiveEmitterOptions, IdentityEvents, IdentityLoadOptions, IdentityOptions, IDMUC_MASTERINDEX, PostFormatEventMap, PostInfo, RecursiveRelResolvingGetPostsGenerator, RelResolvingGetPostsGenerator } from './identity.definitions';
+import { DEFAULT_IDMUC_APPLICATION_STRING, DEFAULT_IDMUC_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX, DEFAULT_MIN_MUC_REBUILD_DELAY, DEFAULT_SUBSCRIPTION_RECURSION_DEPTH, GetPostsGenerator, GetPostsOptions, GetPublicSubscriptionsGenerator, GetPublicSubscriptionsOptions, GetRecursiveEmitterOptions, IdentityEvents, IdentityLoadOptions, IdentityOptions, IDMUC_MASTERINDEX, PostFormatEventMap, PostInfo, RecursiveRelResolvingGetPostsGenerator, RelResolvingGetPostsGenerator } from './identity.definitions';
 import { deriveIdentityMasterKey, deriveIdentityRootCubeKeypair, validateIdentityRoot } from './identityHelpers';
 import { IdentityPersistence } from './identityPersistence';
 import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
@@ -569,8 +569,9 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   removePublicSubscription(remoteIdentity: CubeKey | string | Identity) {
     const key: string = Identity.KeyStringOf(remoteIdentity);
     if (key) {
-      this._publicSubscriptions.delete(key);
-      this.emit("subscriptionRemoved", key);
+      if (this._publicSubscriptions.delete(key)) {
+        this.emit("subscriptionRemoved", key);
+      }
     } else {
       logger.warn("Identity: Ignoring unsubscription request to something that does not at all look like a CubeKey");
     }
@@ -796,21 +797,49 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     return this._publicSubscriptions.has(Identity.KeyStringOf(other));
   }
 
-  /** @yields CubeInfo objects for all of this user's public subscriptions. */
-  async *getPublicSubscriptionCubeInfos(): AsyncGenerator<CubeInfo, void, undefined> {
-    const promises: Promise<CubeInfo>[] = [];
-    for (const sub of this.getPublicSubscriptionStrings()) {
-      promises.push(this.cubeRetriever.getCubeInfo(sub));
+  private getPublicSubscriptions<T>(
+    retrieve: (key: string) => Promise<T | undefined>,
+    options: GetPublicSubscriptionsOptions = {},
+  ): GetPublicSubscriptionsGenerator<T> {
+    const existingGenerator = resolveAndYield(
+      Array.from(this.getPublicSubscriptionStrings(), retrieve),
+    );
+    const generators: AsyncGenerator<T>[] = [existingGenerator];
+
+    if (options.subscribe) {
+      const subscriptionKeyGenerator = eventsToGenerator<[string]>([{
+        emitter: this,
+        event: 'subscriptionAdded',
+      }]);
+
+      const subscriptionGenerator = (async function* (): AsyncGenerator<T> {
+        for await (const key of subscriptionKeyGenerator) {
+          const retrieved = await retrieve(key);
+          if (retrieved !== undefined) yield retrieved;
+        }
+      })();
+      generators.push(subscriptionGenerator);
     }
-    yield *resolveAndYield(promises);
+
+    const ret: GetPublicSubscriptionsGenerator<T> = mergeAsyncGenerators(...generators);
+    ret.existingYielded = ret.completions[0].then();
+    return ret;
+  }
+
+  /** @yields CubeInfo objects for all of this user's public subscriptions. */
+  getPublicSubscriptionCubeInfos(options?: GetPublicSubscriptionsOptions): GetPublicSubscriptionsGenerator<CubeInfo> {
+    return this.getPublicSubscriptions(
+      (sub: string) => this.cubeRetriever.getCubeInfo(sub),
+      options,
+    );
   }
 
   /** @yields Identity objects for all of this user's public subscriptions */
-  async *getPublicSubscriptionIdentities(): AsyncGenerator<Identity> {
-    for (const sub of this.getPublicSubscriptionStrings()) {
-      const retrieved: Identity = await this.identityStore.retrieveIdentity(sub);
-      if (retrieved !== undefined) yield retrieved;
-    }
+  getPublicSubscriptionIdentities(options?: GetPublicSubscriptionsOptions): GetPublicSubscriptionsGenerator<Identity> {
+    return this.getPublicSubscriptions(
+      (sub: string) => this.identityStore.retrieveIdentity(sub),
+      options,
+    );
   }
   // Alias to satisfy the RecursiveEmitterConstituent interface
   getSubemitters = this.getPublicSubscriptionIdentities;

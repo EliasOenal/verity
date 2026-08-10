@@ -153,6 +153,36 @@ describe('Identity: base model tests', () => {
       expect(id.hasPublicSubscription(subbedKey)).toBeTruthy();
     });
 
+
+    it('emits subscriptionAdded only for newly added public subscriptions', async () => {
+      const id = new Identity(
+        undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
+      const subbedKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey;
+      const emitted: string[] = [];
+      id.on('subscriptionAdded', (key: string) => emitted.push(key));
+
+      id.addPublicSubscription(subbedKey);
+      id.addPublicSubscription(subbedKey);
+
+      expect(emitted).toEqual([subbedKey.toString('hex')]);
+    });
+
+    it('emits subscriptionRemoved only for actually removed public subscriptions', async () => {
+      const id = new Identity(
+        undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
+      const subbedKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey;
+      const neverSubbedKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43) as CubeKey;
+      const emitted: string[] = [];
+      id.on('subscriptionRemoved', (key: string) => emitted.push(key));
+
+      id.addPublicSubscription(subbedKey);
+      id.removePublicSubscription(neverSubbedKey);
+      id.removePublicSubscription(subbedKey);
+      id.removePublicSubscription(subbedKey);
+
+      expect(emitted).toEqual([subbedKey.toString('hex')]);
+    });
+
     it('correctly identifies authors as subscribed or not subscribed', async () => {
       const subject: Identity = await Identity.Create(
         cubeStore, "subscriptor", "clavis mea", idTestOptions);

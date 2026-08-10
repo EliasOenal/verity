@@ -15,6 +15,15 @@ import { testCubeStoreParams } from '../testcci.definitions';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
+function timeout(ms = 1000): Promise<never> {
+  return new Promise((_resolve, reject) =>
+    setTimeout(() => reject(new Error('Generator did not yield in time')), ms));
+}
+
+function nextWithTimeout<T>(gen: AsyncGenerator<T>, ms = 1000): Promise<IteratorResult<T>> {
+  return Promise.race([gen.next(), timeout(ms)]);
+}
+
 describe('Identity: CubeInfo generators', () => {
   // This test suite handles Identity's impelementation of the CubeEmitter interface,
   // in particular the getAllCubeInfos() generator and related, more specialised
@@ -183,6 +192,60 @@ describe('Identity: CubeInfo generators', () => {
         expect(subInfos[0].key).toEqual(sub2.getKeyIfAvailable());
         expect(subInfos[0].getCube().getFirstField(FieldType.PAYLOAD).valueString).toBe("Subscriptio secunda");
       });
+
+
+      it('supports subscribe mode and yields new subscription CubeInfos as they arrive', async () => {
+        const sub1: Cube = Cube.Create({
+          cubeType: CubeType.PIC,
+          requiredDifficulty: 0,
+          fields: VerityField.Payload("Subscriptio prima"),
+        });
+        await cubeStore.addCube(sub1);
+        id.addPublicSubscription(sub1.getKeyIfAvailable());
+
+        const subInfos = id.getPublicSubscriptionCubeInfos({ subscribe: true });
+        const first = await nextWithTimeout(subInfos);
+        expect(first.done).toBe(false);
+        expect(first.value.key).toEqual(sub1.getKeyIfAvailable());
+
+        const secondPromise = subInfos.next();
+        await expect(subInfos.existingYielded).resolves.toBeUndefined();
+
+        const sub2: Cube = Cube.Create({
+          cubeType: CubeType.PIC,
+          requiredDifficulty: 0,
+          fields: VerityField.Payload("Subscriptio secunda"),
+        });
+        await cubeStore.addCube(sub2);
+        id.addPublicSubscription(sub2.getKeyIfAvailable());
+
+        const second = await Promise.race([secondPromise, timeout()]);
+        expect(second.done).toBe(false);
+        expect(second.value.key).toEqual(sub2.getKeyIfAvailable());
+        expect(second.value.getCube().getFirstField(FieldType.PAYLOAD).valueString).toBe("Subscriptio secunda");
+
+        subInfos.cancel();
+      });
+
+      it('keeps an initially empty subscription CubeInfo generator open in subscribe mode', async () => {
+        const subInfos = id.getPublicSubscriptionCubeInfos({ subscribe: true });
+        const nextPromise = subInfos.next();
+        await expect(subInfos.existingYielded).resolves.toBeUndefined();
+
+        const sub: Cube = Cube.Create({
+          cubeType: CubeType.PIC,
+          requiredDifficulty: 0,
+          fields: VerityField.Payload("Subscriptio sera"),
+        });
+        await cubeStore.addCube(sub);
+        id.addPublicSubscription(sub.getKeyIfAvailable());
+
+        const next = await Promise.race([nextPromise, timeout()]);
+        expect(next.done).toBe(false);
+        expect(next.value.key).toEqual(sub.getKeyIfAvailable());
+
+        subInfos.cancel();
+      });
     });
 
     describe('getPublicSubscriptionIdentities()', () => {
@@ -235,6 +298,37 @@ describe('Identity: CubeInfo generators', () => {
         expect(subs.length).toBe(1);
         expect(subs[0].key).toEqual(sub2.key);
         expect(subs[0].name).toBe("Subscriptio secunda");
+      });
+
+
+      it('supports subscribe mode and yields new subscription Identities as they arrive', async () => {
+        const sub1MasterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43);
+        const sub1: Identity = await Identity.Construct(cubeStore, sub1MasterKey, idTestOptions);
+        sub1.name = "Subscriptio prima";
+        await sub1.store();
+        id.addPublicSubscription(sub1.key);
+
+        const subs = id.getPublicSubscriptionIdentities({ subscribe: true });
+        const first = await nextWithTimeout(subs);
+        expect(first.done).toBe(false);
+        expect(first.value.key).toEqual(sub1.key);
+        expect(first.value.name).toBe("Subscriptio prima");
+
+        const secondPromise = subs.next();
+        await expect(subs.existingYielded).resolves.toBeUndefined();
+
+        const sub2MasterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 44);
+        const sub2: Identity = await Identity.Construct(cubeStore, sub2MasterKey, idTestOptions);
+        sub2.name = "Subscriptio secunda";
+        await sub2.store();
+        id.addPublicSubscription(sub2.key);
+
+        const second = await Promise.race([secondPromise, timeout()]);
+        expect(second.done).toBe(false);
+        expect(second.value.key).toEqual(sub2.key);
+        expect(second.value.name).toBe("Subscriptio secunda");
+
+        subs.cancel();
       });
     });
 

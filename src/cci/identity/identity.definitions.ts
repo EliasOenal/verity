@@ -210,6 +210,24 @@ export type GetPostsGenerator<T> = MergedAsyncGenerator<T> & {
 export type RelResolvingGetPostsGenerator<T> = GetPostsGenerator<RelResolvingPostInfo<T>>;
 export type RecursiveRelResolvingGetPostsGenerator<T> = GetPostsGenerator<RecursiveRelResolvingPostInfo<T>>;
 
+export interface GetPublicSubscriptionsOptions {
+  /**
+   * If true, the generator will not exit when all existing subscriptions have
+   * been yielded. Instead, it will keep running indefinitely, yielding values
+   * as new subscriptions become available.
+   * TODO provide a way to terminate the generator
+   */
+  subscribe?: boolean;
+}
+
+export type GetPublicSubscriptionsGenerator<T> = MergedAsyncGenerator<T> & {
+  /**
+   * A Promise that will resolve once all existing subscriptions have been
+   * yielded. This mirrors GetPostsGenerator.existingYielded for subscribe mode.
+   */
+  existingYielded?: Promise<void>;
+};
+
 export interface GetRecursiveEmitterOptions {
   depth?: number,
   event?: string,
